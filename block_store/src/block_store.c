@@ -7,7 +7,7 @@
     #define BLOCK_COUNT 65536
 #endif
 #ifndef BLOCK_SIZE
-    #define BLOCK_SIZE 1024
+    #define BLOCK_SIZE 512
 #endif
 #define FBM_BLOCK_COUNT ((BLOCK_COUNT >> 3) / BLOCK_SIZE)
 #define DATA_BLOCK_COUNT (BLOCK_COUNT - FBM_BLOCK_COUNT)

@@ -20,13 +20,13 @@ struct bitmap {
 // lookup instead of always shifting bits. Should be faster? Confirmed: 10% faster
 // Also, using native int width because it should be faster as well? - Negligible/indeterminate
 //  Won't help until bitmap uses native width for the array
-const static uint8_t mask[8] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
+static const uint8_t mask[8] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
 
 // Mask for all bits at index i and lower
-const static uint8_t mask_down_inclusive[8] = {0x01, 0x03, 0x07, 0x0F, 0x1F, 0x3F, 0x7F, 0xFF};
+static const uint8_t mask_down_inclusive[8] = {0x01, 0x03, 0x07, 0x0F, 0x1F, 0x3F, 0x7F, 0xFF};
 
 // Inverted mask
-const static uint8_t invert_mask[8] = {0xFE, 0xFD, 0xFB, 0xF7, 0xEF, 0xDF, 0xBF, 0x7F};
+static const uint8_t invert_mask[8] = {0xFE, 0xFD, 0xFB, 0xF7, 0xEF, 0xDF, 0xBF, 0x7F};
 
 // Way more testing than I should waste my time on suggested uint8_t was faster
 // but it may still be negligible/indeterminate.
@@ -39,7 +39,7 @@ const static uint8_t invert_mask[8] = {0xFE, 0xFD, 0xFB, 0xF7, 0xEF, 0xDF, 0xBF,
 #define B2(n) n, n + 1, n + 1, n + 2
 #define B4(n) B2(n), B2(n + 1), B2(n + 1), B2(n + 2)
 #define B6(n) B4(n), B4(n + 1), B4(n + 1), B4(n + 2)
-const static uint8_t bit_totals[256] = {B6(0), B6(1), B6(1), B6(2)};
+static const uint8_t bit_totals[256] = {B6(0), B6(1), B6(1), B6(2)};
 #undef B6
 #undef B4
 #undef B2

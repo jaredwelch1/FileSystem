@@ -13,6 +13,7 @@ Algorithmns, structures, diagrams, pseudocode. Refer to the assignment document.
 1. fs_format
 2. fs_mount
 3. fs_unmount
+
 ***
 ## Milestone 2
 * Out 10/28
@@ -22,6 +23,7 @@ Algorithmns, structures, diagrams, pseudocode. Refer to the assignment document.
 2. fs_get_dir
 3. fs_open
 4. fs_close
+
 ***
 ## Milestone 3
 * Out 11/04
@@ -29,6 +31,7 @@ Algorithmns, structures, diagrams, pseudocode. Refer to the assignment document.
 
 1. fs_write
 2. fs_read
+
 ***
 ## Milestone 4
 * Out 11/04

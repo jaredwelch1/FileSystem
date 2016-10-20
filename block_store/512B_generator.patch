@@ -1,0 +1,39 @@
+diff --git a/block_store/src/generate_drive.cpp b/block_store/src/generate_drive.cpp
+index 32443d0..068b25d 100644
+--- a/block_store/src/generate_drive.cpp
++++ b/block_store/src/generate_drive.cpp
+@@ -19,6 +19,7 @@ int main(int argc, char *argv[]) {
+ 
+             uint8_t *data = new uint8_t[8192];
+             data[0] = 0xFF; // mark first used
++            data[1] = 0xFF; // ALSO NEXT BIT BECAUSE FBM IS 2x NOW
+             if (argc == 3) {
+                 if (argv[1][0] == 'r') {
+                     std::mt19937 rand_eng(std::chrono::system_clock::now().time_since_epoch().count());
+@@ -27,22 +28,22 @@ int main(int argc, char *argv[]) {
+                         data[i] = (uint8_t) rand_distrib(rand_eng);
+                     }
+                 } else if (argv[1][0] == 'f') {
+-                    memset(data + 1, 0xFF, 8191);
++                    memset(data + 2, 0xFF, 8190);
+                 }
+             }
+             out.write((char *)data, 8192); // I can't believe this has to be cast. Clang is just being petty.
+ 
+             // Cool. FBM is done.
+ 
+-            for (int i = 8; i < 65536; ++i) {
++            for (int i = 16; i < 65536; ++i) {
+                 // other blocks are filled with their blockid number as a 16-bit uint
+                 // since it's 2 bytes, we can't use memset >:C
+ 
+                 // We're just going to ignore the other 7K because I'm lazy
+-                for (int x = 0; x < 512; ++x) { // terribly vague variables. Do as I say, not as I do.
++                for (int x = 0; x < 256; ++x) { // terribly vague variables. Do as I say, not as I do.
+                     ((uint16_t *)data)[x] = i;
+                 }
+-                out.write((char *)data, 1024);
++                out.write((char *)data, 512);
+             }
+             delete[] data;
+             out.close();

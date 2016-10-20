@@ -1,18 +1,13 @@
 #ifndef BLOCK_STORAGE_H__
 #define BLOCK_STORAGE_H__
 
-#include <stdint.h>
-#include <bitmap.h> // This header comes from OSF15_Library, make sre you install it!
+#include <bitmap.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <errno.h>
 #include <unistd.h>
-
-// Notice we don't use stdio and produce no output
-// Libraries generally should leave stdio alone.
-// Writing to stderr will be acceptable for big errors and debugging purposes
-// but you WILL lose points if you write to stdout
 
 
 // declaring the struct but not implementing it allows us to prevent users
@@ -22,29 +17,29 @@
 typedef struct block_store block_store_t;
 
 /*
-	Ok, here's a rundown of the idea I went with for this error system:
-		We have an error enum with defferent categories of errors: OK, PARAM, INTERNAL, FATAL, and WARN.
-		An error AND'd with it's error category will result in true and fail otherwise, allowing you to
-			identify groups of errors and act accordingly
-		You shouldn't actually set the errno to a category unless it's BS_OK, you should use the
-			subcategory errors
-		BS_OK is pretty self-explanitory
-		BS_PARAM indicated a parameter error. I also, somewhat arguably incorrectly, also use it to
-			indicate an error with the BS object, though that may technically be INTERNAL/FATAL
-		BS_INTERNAL indicates some sort of issue with the BS object itself, but it's not a fatal issue
-			For example, you wanted a block, but we're out. The object's not broken, but it is an error.
-		BS_FATAL Originally was supposed to indicate that the BS object was left in a broken state, but
-			it turned out that due to the way I organized things, the object can only break during
-			creation, and if that happens, it's not returned, so now it indicated that the operation failed
-			for some reason (like a malloc failure). Since I have both FILE_ACCESS and FILE_IO, let me explain
-			FILE_ACCESS is for when you, well, can't access the file. FILE_IO is for an error during file IO
-			(which is a much bigger problem, if this is during export, the file might be broken, and if it's
-			dirng import, import fails)
-		BS_WARN is really just covering an edge case I decided to allow
-			BS_REQUEST_MISMATCH is set when you read/write to a block not marked as in use
-			The read/write functions still return normally, but the errno isn't BS_OK.
-			Warning are meant to be just that, only a warning
-	Be sure to return the appropriate error category when a problem happens!
+    Ok, here's a rundown of the idea I went with for this error system:
+        We have an error enum with defferent categories of errors: OK, PARAM, INTERNAL, FATAL, and WARN.
+        An error AND'd with it's error category will result in true and fail otherwise, allowing you to
+            identify groups of errors and act accordingly
+        You shouldn't actually set the errno to a category unless it's BS_OK, you should use the
+            subcategory errors
+        BS_OK is pretty self-explanitory
+        BS_PARAM indicated a parameter error. I also, somewhat arguably incorrectly, also use it to
+            indicate an error with the BS object, though that may technically be INTERNAL/FATAL
+        BS_INTERNAL indicates some sort of issue with the BS object itself, but it's not a fatal issue
+            For example, you wanted a block, but we're out. The object's not broken, but it is an error.
+        BS_FATAL Originally was supposed to indicate that the BS object was left in a broken state, but
+            it turned out that due to the way I organized things, the object can only break during
+            creation, and if that happens, it's not returned, so now it indicated that the operation failed
+            for some reason (like a malloc failure). Since I have both FILE_ACCESS and FILE_IO, let me explain
+            FILE_ACCESS is for when you, well, can't access the file. FILE_IO is for an error during file IO
+            (which is a much bigger problem, if this is during export, the file might be broken, and if it's
+            dirng import, import fails)
+        BS_WARN is really just covering an edge case I decided to allow
+            BS_REQUEST_MISMATCH is set when you read/write to a block not marked as in use
+            The read/write functions still return normally, but the errno isn't BS_OK.
+            Warning are meant to be just that, only a warning
+    Be sure to return the appropriate error category when a problem happens!
 */
 
 ///
@@ -53,15 +48,21 @@ typedef struct block_store block_store_t;
 typedef enum {
     BS_OK = 0x00,
     BS_PARAM = 0x10,
-    BS_INTERNAL = 0x20, BS_FULL = 0x21, BS_IN_USE = 0x22, BS_NOT_IN_USE = 0x23, BS_NO_LINK = 0x24, BS_LINK_EXISTS = 0x25,
-    BS_FATAL = 0x40, BS_FILE_ACCESS = 0x41, BS_FILE_IO = 0x42, BS_MEMORY = 0x43,
-    BS_WARN = 0x80, BS_REQUEST_MISMATCH = 0x81
+    BS_INTERNAL = 0x20,
+    BS_FULL = 0x21,
+    BS_IN_USE = 0x22,
+    BS_NOT_IN_USE = 0x23,
+    BS_NO_LINK = 0x24,
+    BS_LINK_EXISTS = 0x25,
+    BS_FATAL = 0x40,
+    BS_FILE_ACCESS = 0x41,
+    BS_FILE_IO = 0x42,
+    BS_MEMORY = 0x43,
+    BS_WARN = 0x80,
+    BS_REQUEST_MISMATCH = 0x81
 } bs_status;
 
-typedef enum {
-    BS_NO_FLUSH = 0x00,
-    BS_FLUSH = 0x01
-} bs_flush_flag;
+typedef enum { BS_NO_FLUSH = 0x00, BS_FLUSH = 0x01 } bs_flush_flag;
 
 ///
 /// This creates a new BS device
@@ -131,7 +132,8 @@ void block_store_release(block_store_t *const bs, const size_t block_id);
 /// \param offset Block read offset
 /// \return Number of bytes read, 0 on error
 ///
-size_t block_store_read(const block_store_t *const bs, const size_t block_id, void *buffer, const size_t nbytes, const size_t offset);
+size_t block_store_read(const block_store_t *const bs, const size_t block_id, void *buffer, const size_t nbytes,
+                        const size_t offset);
 
 ///
 /// Reads data from the specified buffer and writes it to the designated block and offset
@@ -142,7 +144,8 @@ size_t block_store_read(const block_store_t *const bs, const size_t block_id, vo
 /// \param offset Block write offset
 /// \return Number of bytes written, 0 on error
 ///
-size_t block_store_write(block_store_t *const bs, const size_t block_id, const void *buffer, const size_t nbytes, const size_t offset);
+size_t block_store_write(block_store_t *const bs, const size_t block_id, const void *buffer, const size_t nbytes,
+                         const size_t offset);
 
 ///
 /// Imports BS device from the given file and links to it
@@ -195,11 +198,11 @@ bs_status block_store_errno();
 /*
     // PIT OF DEPRECATION:
 
-	/// OH MAN THIS BROKE EVERYTHING AND I NEVER NOTICED AND I AM BAD A COMPUTERS
-	///
-	/// This is our errno... it's an errno.
-	///
-	static bs_status bs_errno = BS_OK;
+    /// OH MAN THIS BROKE EVERYTHING AND I NEVER NOTICED AND I AM BAD A COMPUTERS
+    ///
+    /// This is our errno... it's an errno.
+    ///
+    static bs_status bs_errno = BS_OK;
 
 
     ///

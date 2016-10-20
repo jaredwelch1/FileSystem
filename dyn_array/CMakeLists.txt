@@ -7,9 +7,10 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELEASE} -g")
 
 if (NOT CMAKE_BUILD_TYPE)
-	set(CMAKE_BUILD_TYPE Debug)
+	set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
 
+include_directories(include)
 
 add_library(${PROJECT_NAME} SHARED src/${PROJECT_NAME}.c)
 set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -25,7 +26,7 @@ set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
 
 
 
-# tester gibberish
+# ANCIENT tester gibberish
 
 
 # http://www.cmake.org/Wiki/CMakeEmulateMakeCheck

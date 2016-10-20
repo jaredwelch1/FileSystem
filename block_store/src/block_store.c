@@ -1,4 +1,4 @@
-#include "../include/block_store.h"
+#include "block_store.h"
 
 // Overriding these will probably break it since I'm not testing it that much
 // It probably won't go crazy so long as the sizes are reasonable and powers of two
@@ -44,10 +44,11 @@ bs_status bs_errno = BS_OK;
 // Flags, yay!
 // Most won't be used (yet)
 // make sure ALL is as wide as the largest flag
-typedef enum {NONE = 0x00, FILE_LINKED = 0x01, FILE_BASED = 0x02, DIRTY = 0x04, ALL = 0xFF} BS_FLAGS;
+typedef enum { NONE = 0x00, FILE_LINKED = 0x01, FILE_BASED = 0x02, DIRTY = 0x04, ALL = 0xFF } BS_FLAGS;
 
 struct block_store {
-    int fd; // R/W position never guarenteed, flag indicates link state (attempt to set it to -1 when not in use as well)
+    int fd;  // R/W position never guarenteed, flag indicates link state (attempt to set it to -1 when not in use as
+             // well)
     BS_FLAGS flags;
     bitmap_t *dbm;
     bitmap_t *fbm;
@@ -93,9 +94,8 @@ block_store_t *block_store_create() {
     block_store_t *bs = calloc(sizeof(block_store_t), 1);
     if (bs) {
         if ((bs->data_blocks = calloc(BLOCK_COUNT, BLOCK_SIZE)) &&
-                // Eh, calloc, why not (technically a security risk if we don't)
-                (bs->fbm = bitmap_overlay(BLOCK_COUNT, bs->data_blocks)) &&
-                (bs->dbm = bitmap_create(BLOCK_COUNT))) {
+            // Eh, calloc, why not (technically a security risk if we don't)
+            (bs->fbm = bitmap_overlay(BLOCK_COUNT, bs->data_blocks)) && (bs->dbm = bitmap_create(BLOCK_COUNT))) {
             for (size_t idx = 0; idx < FBM_BLOCK_COUNT; ++idx) {
                 bitmap_set(bs->fbm, idx);
             }
@@ -131,7 +131,7 @@ void block_store_destroy(block_store_t *const bs, const bs_flush_flag flush) {
             // I'd just put this up at the unlink but
             // I really prefer setting the errno before the return
             // to make sure it's always "correct"
-            bs_errno = BS_OK; // Haha, is it really ok if we just deleted it?
+            bs_errno = BS_OK;  // Haha, is it really ok if we just deleted it?
         }
         return;
     }
@@ -178,7 +178,7 @@ bool block_store_request(block_store_t *const bs, const size_t block_id) {
 
 size_t block_store_get_used_blocks(const block_store_t *const bs) {
     if (bs) {
-        return bitmap_total_set(bs->fbm) - FBM_BLOCK_COUNT; // stupid total_set undoes our FBM negation in total
+        return bitmap_total_set(bs->fbm) - FBM_BLOCK_COUNT;  // stupid total_set undoes our FBM negation in total
     }
     return 0;
 }
@@ -211,7 +211,8 @@ void block_store_release(block_store_t *const bs, const size_t block_id) {
 }
 
 
-size_t block_store_read(const block_store_t *const bs, const size_t block_id, void *buffer, const size_t nbytes, const size_t offset) {
+size_t block_store_read(const block_store_t *const bs, const size_t block_id, void *buffer, const size_t nbytes,
+                        const size_t offset) {
     if (bs && BLOCKID_VALID(block_id) && buffer && nbytes && (nbytes + offset <= BLOCK_SIZE)) {
         // Not going to forbid reading of not-in-use blocks (but we'll log it via the errno)
         memcpy(buffer, bs->data_blocks + BLOCK_OFFSET_POSITION(block_id, offset), nbytes);
@@ -228,12 +229,13 @@ size_t block_store_read(const block_store_t *const bs, const size_t block_id, vo
 // Need to refactor this for V3. Have this switch on FILE_BASED and have it either do
 // block_mem_write or block_file_write (both with same params) which then handles everything
 // (same for read)
-size_t block_store_write(block_store_t *const bs, const size_t block_id, const void *buffer, const size_t nbytes, const size_t offset) {
+size_t block_store_write(block_store_t *const bs, const size_t block_id, const void *buffer, const size_t nbytes,
+                         const size_t offset) {
     if (bs && BLOCKID_VALID(block_id) && buffer && nbytes && (nbytes + offset <= BLOCK_SIZE)) {
         // Not going to forbid writing of not-in-use blocks (but we'll log it via errno)
         bitmap_set(bs->dbm, block_id);
         FLAG_SET(bs, DIRTY);
-        memcpy((void *)(bs->data_blocks + BLOCK_OFFSET_POSITION(block_id, offset)), buffer, nbytes);
+        memcpy((void *) (bs->data_blocks + BLOCK_OFFSET_POSITION(block_id, offset)), buffer, nbytes);
         bs_errno = bitmap_test(bs->fbm, block_id) ? BS_OK : BS_REQUEST_MISMATCH;
         return nbytes;
     }
@@ -294,8 +296,10 @@ block_store_t *block_store_import(const char *const filename) {
         if (filename && bs && bs->fbm && bs->data_blocks) {
             const int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP);
             if (fd != -1) {
-                if (utility_write_file(fd, bitmap_export(bs->fbm), FBM_BLOCK_COUNT * BLOCK_SIZE) == (FBM_BLOCK_COUNT * BLOCK_SIZE)) {
-                    if (utility_write_file(fd, bs->data_blocks, BLOCK_SIZE * (BLOCK_COUNT - FBM_BLOCK_COUNT)) == (BLOCK_SIZE * (BLOCK_COUNT - FBM_BLOCK_COUNT))) {
+                if (utility_write_file(fd, bitmap_export(bs->fbm), FBM_BLOCK_COUNT * BLOCK_SIZE) == (FBM_BLOCK_COUNT *
+   BLOCK_SIZE)) {
+                    if (utility_write_file(fd, bs->data_blocks, BLOCK_SIZE * (BLOCK_COUNT - FBM_BLOCK_COUNT)) ==
+   (BLOCK_SIZE * (BLOCK_COUNT - FBM_BLOCK_COUNT))) {
                         block_store_errno = BS_OK;
                         close(fd);
                         return BLOCK_SIZE * BLOCK_COUNT;
@@ -316,7 +320,7 @@ block_store_t *block_store_import(const char *const filename) {
 
 void block_store_link(block_store_t *const bs, const char *const filename) {
     if (bs && filename) {
-        if (! FLAG_CHECK(bs, FILE_LINKED)) {
+        if (!FLAG_CHECK(bs, FILE_LINKED)) {
             // Ok, I can make a giant complicated hunk of logic to:
             //   Create if it doesn't exist
             //   Increase size if smaller
@@ -370,16 +374,16 @@ void block_store_unlink(block_store_t *const bs, const bs_flush_flag flush) {
 void block_store_flush(block_store_t *const bs) {
     if (bs) {
         if (FLAG_CHECK(bs, FILE_LINKED)) {
-            if (FLAG_CHECK(bs, DIRTY)) { // actual work to do
-                // size_t blocks_to_write = bitmap_total_set(bs->dbm);
-                /*
-                    typedef struct {
-                        int disaster_errno;
-                        block_store_t *const bs;
-                        size_t byte_counter;
-                        bs_status status;
-                    } bs_sync_obj;
-                */
+            if (FLAG_CHECK(bs, DIRTY)) {  // actual work to do
+                                          // size_t blocks_to_write = bitmap_total_set(bs->dbm);
+                                          /*
+                                              typedef struct {
+                                                  int disaster_errno;
+                                                  block_store_t *const bs;
+                                                  size_t byte_counter;
+                                                  bs_status status;
+                                              } bs_sync_obj;
+                                          */
                 bs_sync_obj sync_results = {0, bs, 0, BS_OK};
 
                 bitmap_for_each(bs->dbm, &block_sync, &sync_results);
@@ -455,7 +459,7 @@ bs_status block_store_errno() {
 // Jumps the fd to the needed location and writes to it
 // Admittedly, this function is not pretty.
 void block_sync(size_t block_id, void *bs_sync_ptr) {
-    bs_sync_obj *bs_sync = (bs_sync_obj *)bs_sync_ptr;
+    bs_sync_obj *bs_sync = (bs_sync_obj *) bs_sync_ptr;
     /*
         typedef struct {
             int disaster_errno;
@@ -470,9 +474,10 @@ void block_sync(size_t block_id, void *bs_sync_ptr) {
                 if (FLAG_CHECK(bs_sync->bs, FILE_LINKED)) {
                     // Ducks = in a row
                     // jump to file position
-                    if (lseek(bs_sync->bs->fd, BLOCK_POSITION(block_id), SEEK_SET) == BLOCK_POSITION(block_id)) {
+                    if (lseek(bs_sync->bs->fd, BLOCK_POSITION(block_id), SEEK_SET) == (off_t) BLOCK_POSITION(block_id)) {
                         // attempt to write
-                        size_t written = utility_write_file(bs_sync->bs->fd, bs_sync->bs->data_blocks + BLOCK_POSITION(block_id), BLOCK_SIZE);
+                        size_t written = utility_write_file(
+                            bs_sync->bs->fd, bs_sync->bs->data_blocks + BLOCK_POSITION(block_id), BLOCK_SIZE);
                         // Update written with WHATEVER happened
                         bs_sync->byte_counter += written;
                         if (written == BLOCK_SIZE) {
@@ -485,7 +490,7 @@ void block_sync(size_t block_id, void *bs_sync_ptr) {
                     bs_sync->disaster_errno = errno;
                     return;
                 }
-                bs_sync->status = BS_NO_LINK; // HOW DID THIS HAPPEN
+                bs_sync->status = BS_NO_LINK;  // HOW DID THIS HAPPEN
                 return;
             }
             bs_sync->status = BS_PARAM;
@@ -504,7 +509,9 @@ size_t utility_read_file(const int fd, uint8_t *buffer, const size_t count) {
     do {
         data_read = read(fd, buffer + have_read, will_read);
         if (data_read == -1) {
-            if (errno == EINTR) { continue; }
+            if (errno == EINTR) {
+                continue;
+            }
             return have_read;
         }
         will_read -= data_read;
@@ -519,7 +526,9 @@ size_t utility_write_file(const int fd, const uint8_t *buffer, const size_t coun
     do {
         data_written = write(fd, buffer + have_written, will_write);
         if (data_written == -1) {
-            if (errno == EINTR) { continue; }
+            if (errno == EINTR) {
+                continue;
+            }
             return have_written;
         }
         will_write -= data_written;

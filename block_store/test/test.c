@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "../src/block_store.c"
@@ -7,9 +7,9 @@
 // than if we were using the public interface
 // (you can only see inside the struct if you do it this way)
 
-#define assert(e) ((e) ? (true) : \
-                   (fprintf(stderr,"%s,%d: assertion '%s' failed\n",__FILE__, __LINE__, #e), \
-                    fflush(stdout), abort()))
+#define assert(e) \
+    ((e) ? (true) \
+         : (fprintf(stderr, "%s,%d: assertion '%s' failed\n", __FILE__, __LINE__, #e), fflush(stdout), abort()))
 
 /*
 
@@ -109,7 +109,6 @@ void basic_tests_c();
 void basic_tests_d();
 
 int main() {
-
     puts("Running autotests, sit back and relax, it'll be awhile...");
 
     basic_tests_a();
@@ -130,11 +129,9 @@ int main() {
     puts("D tests passed...");
 
     puts("TESTS COMPLETE");
-
 }
 
 void basic_tests_a() {
-
     block_store_t *bs_a = NULL;
 
     // CREATE 1
@@ -184,7 +181,7 @@ void basic_tests_a() {
 
     assert(block_store_allocate(bs_a) == 0);
     assert(bs_errno == BS_FULL);
-    assert(bs_errno == block_store_errno()); // Tiny test to validate that the two are in sync
+    assert(bs_errno == block_store_errno());  // Tiny test to validate that the two are in sync
 
     // Arbitrary release and reallocate
 
@@ -268,7 +265,7 @@ void basic_tests_a() {
 void basic_tests_b() {
     block_store_t *bs_a = NULL, *bs_b = NULL;
     const char *const file = "test.bs";
-    //uint16_t arr[BLOCK_SIZE >> 1];
+    // uint16_t arr[BLOCK_SIZE >> 1];
 
 
     assert(0 == system("./generate_drive e test.bs"));
@@ -312,7 +309,7 @@ void basic_tests_b() {
     assert(bs_b == NULL);
     assert(bs_errno == BS_FILE_ACCESS);
 
-    //IMPORT 5
+    // IMPORT 5
     bs_b = block_store_import("bad.bs");
     assert(bs_b == NULL);
     assert(bs_errno == BS_FILE_ACCESS);
@@ -353,13 +350,11 @@ void basic_tests_b() {
     block_store_destroy(bs_a, BS_NO_FLUSH);
 
     system("rm test.bs bad.bs should_not_create.bs new_test.bs");
-
 }
 
 
 // READ WRITE
 void basic_tests_c() {
-
     block_store_t *bs_a = NULL;
     uint16_t arr[(BLOCK_SIZE >> 1) + 128];
     const char *const file = "test.bs";
@@ -393,50 +388,50 @@ void basic_tests_c() {
 
     res_size = block_store_read(bs_a, blk_id + 1, arr, BLOCK_SIZE, 0);
     assert(bs_errno == BS_REQUEST_MISMATCH);
-    assert(res_size ==  BLOCK_SIZE);
+    assert(res_size == BLOCK_SIZE);
     assert(memcmp(arr, bs_a->data_blocks + (BLOCK_SIZE * (blk_id + 1)), BLOCK_SIZE) == 0);
 
     // READ 4
 
     res_size = block_store_read(bs_a, blk_id, arr, BLOCK_SIZE + 1, 0);
     assert(bs_errno == BS_PARAM);
-    assert(res_size ==  0);
+    assert(res_size == 0);
 
     // READ 5
 
     res_size = block_store_read(bs_a, blk_id, arr, 0, 0);
     assert(bs_errno == BS_PARAM);
-    assert(res_size ==  0);
+    assert(res_size == 0);
 
     // READ 6
 
     res_size = block_store_read(bs_a, blk_id, arr, 0, BLOCK_SIZE);
     assert(bs_errno == BS_PARAM);
-    assert(res_size ==  0);
+    assert(res_size == 0);
 
     // READ 7
 
     res_size = block_store_read(bs_a, blk_id, arr, 1, BLOCK_SIZE + 1);
     assert(bs_errno == BS_PARAM);
-    assert(res_size ==  0);
+    assert(res_size == 0);
 
     // READ 8
 
     res_size = block_store_read(bs_a, blk_id, arr, (BLOCK_SIZE >> 1) + 1, (BLOCK_SIZE >> 1) + 1);
     assert(bs_errno == BS_PARAM);
-    assert(res_size ==  0);
+    assert(res_size == 0);
 
     // READ 9
 
     res_size = block_store_read(NULL, blk_id, arr, BLOCK_SIZE >> 2, 0);
     assert(bs_errno == BS_PARAM);
-    assert(res_size ==  0);
+    assert(res_size == 0);
 
     // READ 10
 
     res_size = block_store_read(bs_a, blk_id, NULL, BLOCK_SIZE >> 2, 0);
     assert(bs_errno == BS_PARAM);
-    assert(res_size ==  0);
+    assert(res_size == 0);
 
     // READ tests complete and clear for use
 
@@ -464,7 +459,7 @@ void basic_tests_c() {
 
     res_size = block_store_write(bs_a, blk_id + 1, arr, BLOCK_SIZE, 0);
     assert(bs_errno == BS_REQUEST_MISMATCH);
-    assert(res_size ==  BLOCK_SIZE);
+    assert(res_size == BLOCK_SIZE);
     assert(FLAG_CHECK(bs_a, DIRTY));
     assert(bitmap_test(bs_a->dbm, blk_id + 1));
     assert(memcmp(arr, bs_a->data_blocks + (BLOCK_SIZE * (blk_id + 1)), BLOCK_SIZE) == 0);
@@ -473,53 +468,50 @@ void basic_tests_c() {
 
     res_size = block_store_write(bs_a, blk_id, arr, BLOCK_SIZE + 1, 0);
     assert(bs_errno == BS_PARAM);
-    assert(res_size ==  0);
+    assert(res_size == 0);
 
     // WRITE 5
 
     res_size = block_store_write(bs_a, blk_id, arr, 0, 0);
     assert(bs_errno == BS_PARAM);
-    assert(res_size ==  0);
+    assert(res_size == 0);
 
     // WRITE 6
 
     res_size = block_store_write(bs_a, blk_id, arr, 0, BLOCK_SIZE);
     assert(bs_errno == BS_PARAM);
-    assert(res_size ==  0);
+    assert(res_size == 0);
 
     // WRITE 7
 
     res_size = block_store_write(bs_a, blk_id, arr, 1, BLOCK_SIZE + 1);
     assert(bs_errno == BS_PARAM);
-    assert(res_size ==  0);
+    assert(res_size == 0);
 
     // WRITE 8
 
     res_size = block_store_write(bs_a, blk_id, arr, (BLOCK_SIZE >> 1) + 1, (BLOCK_SIZE >> 1) + 1);
     assert(bs_errno == BS_PARAM);
-    assert(res_size ==  0);
+    assert(res_size == 0);
 
     // WRITE 9
 
     res_size = block_store_write(NULL, blk_id, arr, BLOCK_SIZE >> 2, 0);
     assert(bs_errno == BS_PARAM);
-    assert(res_size ==  0);
+    assert(res_size == 0);
 
     // WRITE 10
 
     res_size = block_store_write(bs_a, blk_id, NULL, BLOCK_SIZE >> 2, 0);
     assert(bs_errno == BS_PARAM);
-    assert(res_size ==  0);
+    assert(res_size == 0);
 
     block_store_destroy(bs_a, BS_NO_FLUSH);
 
     system("rm test.bs");
-
-
 }
 
 void basic_tests_d() {
-
     block_store_t *bs_a;
     const char *const file = "test.bs";
     assert(0 == system("./generate_drive e test.bs"));
@@ -622,5 +614,4 @@ void basic_tests_d() {
     // FLush tested and clear for use (?)
 
     system("rm test.bs new_test.bs");
-
 }

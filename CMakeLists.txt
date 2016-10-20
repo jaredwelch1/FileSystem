@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 2.8)
 
-project(OSLib)
+#project(OSLib)
 
 # Neato
 #set(CMAKE_DISABLE_SOURCE_CHANGES ON)
@@ -31,10 +31,10 @@ endif()
 
 
 
-if (NOT CMAKE_BUILD_TYPE)
-	message(STATUS "Build type not set, defaulting to Release")
-	set(CMAKE_BUILD_TYPE Release)
-endif()
+#if (NOT CMAKE_BUILD_TYPE)
+#	message(STATUS "Build type not set, defaulting to Release")
+#	set(CMAKE_BUILD_TYPE Release)
+#endif()
 
 
 add_subdirectory(dyn_array)
@@ -42,6 +42,8 @@ add_subdirectory(dyn_array)
 add_subdirectory(bitmap)
 
 add_subdirectory(block_store)
+
+add_subdirectory(f16fs)
 
 # My hero http://stackoverflow.com/a/16404000
 

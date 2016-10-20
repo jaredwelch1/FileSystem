@@ -1,4 +1,4 @@
-#include "../include/bitmap.h"
+#include "bitmap.h"
 
 // Just the one for now. Indicates we're an overlay and should not free
 // (also, make sure that ALL is as wide as ll of the flags)
@@ -191,9 +191,9 @@ bitmap_t *bitmap_initialize(size_t n_bits, BITMAP_FLAGS flags) {
     if (n_bits) {  // must be non-zero
         bitmap_t *bitmap = (bitmap_t *) malloc(sizeof(bitmap_t));
         if (bitmap) {
-            bitmap->flags         = flags;
-            bitmap->bit_count     = n_bits;
-            bitmap->byte_count    = n_bits >> 3;
+            bitmap->flags = flags;
+            bitmap->bit_count = n_bits;
+            bitmap->byte_count = n_bits >> 3;
             bitmap->leftover_bits = n_bits & 0x07;
             bitmap->byte_count += (bitmap->leftover_bits ? 1 : 0);
 

@@ -1,14 +1,13 @@
-#include <iostream>
-#include <fstream>
-#include <random>
-#include <cstdint>
-#include <new>
-#include <cstring>
 #include <chrono>
+#include <cstdint>
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <new>
+#include <random>
 
 int main(int argc, char *argv[]) {
-    const bool valid_args =
-        (argc == 2 || (argc == 3 && (argv[1][0] == 'e' || argv[1][0] == 'r' || argv[1][0] == 'f')));
+    const bool valid_args = (argc == 2 || (argc == 3 && (argv[1][0] == 'e' || argv[1][0] == 'r' || argv[1][0] == 'f')));
     if (valid_args) {
         try {
             std::ofstream out;
@@ -18,8 +17,8 @@ int main(int argc, char *argv[]) {
             out.open(argc == 2 ? argv[1] : argv[2], std::ios_base::trunc);
 
             uint8_t *data = new uint8_t[8192];
-            data[0] = 0xFF; // mark first used
-            data[1] = 0xFF; // ALSO NEXT BIT BECAUSE FBM IS 2x NOW
+            data[0] = 0xFF;  // mark first used
+            data[1] = 0xFF;  // ALSO NEXT BIT BECAUSE FBM IS 2x NOW
             if (argc == 3) {
                 if (argv[1][0] == 'r') {
                     std::mt19937 rand_eng(std::chrono::system_clock::now().time_since_epoch().count());
@@ -31,7 +30,7 @@ int main(int argc, char *argv[]) {
                     memset(data + 2, 0xFF, 8190);
                 }
             }
-            out.write((char *)data, 8192); // I can't believe this has to be cast. Clang is just being petty.
+            out.write((char *) data, 8192);  // I can't believe this has to be cast. Clang is just being petty.
 
             // Cool. FBM is done.
 
@@ -40,10 +39,10 @@ int main(int argc, char *argv[]) {
                 // since it's 2 bytes, we can't use memset >:C
 
                 // We're just going to ignore the other 7K because I'm lazy
-                for (int x = 0; x < 256; ++x) { // terribly vague variables. Do as I say, not as I do.
-                    ((uint16_t *)data)[x] = i;
+                for (int x = 0; x < 256; ++x) {  // terribly vague variables. Do as I say, not as I do.
+                    ((uint16_t *) data)[x] = i;
                 }
-                out.write((char *)data, 512);
+                out.write((char *) data, 512);
             }
             delete[] data;
             out.close();
@@ -52,9 +51,9 @@ int main(int argc, char *argv[]) {
             return -1;
         }
     } else {
-        std::cout << "USEAGE:\n\tGenerate new drive file:\n\t\t"
-                  << argv[0] << " FILENAME"
-                  "\n\tGenerate new drive with (e)mpty, (r)andom, or (f)ull block map:\n\t\t"
+        std::cout << "USEAGE:\n\tGenerate new drive file:\n\t\t" << argv[0]
+                  << " FILENAME"
+                     "\n\tGenerate new drive with (e)mpty, (r)andom, or (f)ull block map:\n\t\t"
                   << argv[0] << " [erf] FILENAME" << std::endl;
         return -1;
     }

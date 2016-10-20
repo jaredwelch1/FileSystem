@@ -3,9 +3,9 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
 
 typedef struct dyn_array dyn_array_t;
 // Next version, push/pop_N_back/front for bulk loading

@@ -1,4 +1,4 @@
-#include "../include/dyn_array.h"
+#include "dyn_array.h"
 
 // Flag values
 // SHRUNK to indicate shrink_to_fit was called and size needs to be corrected
@@ -394,7 +394,7 @@ bool dyn_request_size_increase(dyn_array_t *const dyn_array, const size_t increm
             void *new_array = realloc(dyn_array->array, new_capacity * dyn_array->data_size);
             if (new_array) {
                 // success! Wasn't that easy?
-                dyn_array->array    = new_array;
+                dyn_array->array = new_array;
                 dyn_array->capacity = new_capacity;
                 return true;
             }

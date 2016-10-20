@@ -1,11 +1,11 @@
 #ifndef BITMAP_H__
 #define BITMAP_H__
 
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <stddef.h>
-#include <stdbool.h>
-#include <stdarg.h>
 #include <string.h>
 
 typedef struct bitmap bitmap_t;

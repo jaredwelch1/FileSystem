@@ -1,5 +1,8 @@
 #ifndef dyn_array_H__
 #define dyn_array_H__
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -266,4 +269,7 @@ bool dyn_array_for_each(dyn_array_t *const dyn_array, void (*const func)(void *c
 bool dyn_array_for_each(dyn_array_t *const dyn_array, void (*func)(void *const));
 */
 
+#ifdef __cplusplus
+}
+#endif
 #endif

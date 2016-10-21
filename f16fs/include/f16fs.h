@@ -1,4 +1,5 @@
 #ifndef F16FS_H__
+#define F16FS_H__
 #ifdef __cplusplus
 extern "C" {
 #endif

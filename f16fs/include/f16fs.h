@@ -24,6 +24,15 @@ typedef struct {
     file_t type;
 } file_record_t;
 
+
+//struct for a file descriptor entry 
+typedef struct {
+	unsigned short int inode_index; //file reference 
+	size_t offset; //Offset of bytes for file descriptor
+} file_descriptor_t;
+
+void test_inode_size();
+
 ///
 /// Formats (and mounts) an F16FS file for use
 /// \param fname The file to format

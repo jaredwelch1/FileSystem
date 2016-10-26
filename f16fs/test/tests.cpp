@@ -78,10 +78,10 @@ TEST(a_tests, format_mount_unmount) {
     ASSERT_NE(fs, nullptr);
 
     // UNMOUNT 1
-   // ASSERT_EQ(fs_unmount(fs), 0);
+   	ASSERT_EQ(fs_unmount(fs), 0);
 
     // UNMOUNT 2
-    //ASSERT_LT(fs_unmount(NULL), 0);
+    ASSERT_LT(fs_unmount(NULL), 0);
 
     // MOUNT 1
     fs = fs_mount(test_fname);

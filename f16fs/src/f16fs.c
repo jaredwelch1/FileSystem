@@ -33,25 +33,23 @@ F16FS_t *fs_format(const char *path){
 	if (path == NULL)
 			return NULL;
 	size_t i = 0;
-	puts("line 36");
 	while(path[i] != '\0'){
 		if(path[i] == '\n')
 			return NULL;
 			i++;
 		
 	}
-	puts("line 43");
+	
 	block_store_t *bs = block_store_create(path);
 	
 	if (bs == NULL)
 		return NULL;
-	puts("line 48");
+	
 	//now we have a block store created at file, so, we must format the first 32 blocks to be inodes
 	
 	for ( i = 17; i < INODE_BLOCK_COUNT + 16; i++){ //start at 17 since we cant use the first couple blocks 
 		inode_t block_format[8]; //8 inode per block
 		if( !block_store_request((block_store_t *const)bs, (const unsigned)i) ){
-			puts("line 54");
 			printf("\nThe for loop is at %d", (int)i);
 			return NULL;		
 		} 
@@ -114,7 +112,10 @@ F16FS_t *fs_mount(const char *path){
 }
 
 int fs_unmount(F16FS_t *fs){
-	if (fs)
-	return -1;
-	return -1;
+	if (fs == NULL)
+		return -1;
+	block_store_close(fs->bs);		
+	free(fs);
+
+	return 0;
 }

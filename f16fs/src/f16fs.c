@@ -9,18 +9,29 @@
 #define INODE_COUNT 256 //this should be fine for formatting the first few blocks I think?
 	 				  //64 byte inode, 512 byte block, so 8 inodes per block? 
 #define INODE_BLOCK_COUNT 32
+#define BLOCK_BYTE_COUNT 512
 typedef struct F16FS {
 	file_descriptor_t file_descriptor_table[256];
 	block_store_t *bs;	
 } F16FS_t;
 
+//int is size 4 bytes i checked
+//enum for file type is 4 bytes
 typedef struct inode {
-	char meta[48];
+	char meta[40];
+	unsigned int file_size;
+	file_t type;
 	short directPtrs[6];
 	short indirectOne; //index for inode
 	short indirectTwo; //index for inode
 } inode_t;		//tested this, comes out to 64 bytes
 
+
+typedef struct direct_entr {
+	char fname[64]; //sloppy
+	unsigned char inode_index;
+} directory_entry_t;
+//limit to 7 directory entries per directory file data
 
 void test_inode_size(){
 	printf("%d", (int)sizeof(inode_t));
@@ -30,6 +41,8 @@ void test_inode_size(){
 //of unnecessary logic I think
 
 F16FS_t *fs_format(const char *path){
+	//printf("\nsize of enum: %d" , (int)sizeof(inode_t));
+	
 	if (path == NULL)
 			return NULL;
 	size_t i = 0;
@@ -47,7 +60,7 @@ F16FS_t *fs_format(const char *path){
 	
 	//now we have a block store created at file, so, we must format the first 32 blocks to be inodes
 	
-	for ( i = 17; i < INODE_BLOCK_COUNT + 16; i++){ //start at 17 since we cant use the first couple blocks 
+	for ( i = 17; i < INODE_BLOCK_COUNT + 16; i++){ //start at 17 since we cant use the first 16 blocks 
 		inode_t block_format[8]; //8 inode per block
 		if( !block_store_request((block_store_t *const)bs, (const unsigned)i) ){
 			printf("\nThe for loop is at %d", (int)i);
@@ -63,8 +76,32 @@ F16FS_t *fs_format(const char *path){
 		//format then copy that format to each block
 		if ( ! block_store_write( (block_store_t *const)bs, (const unsigned) i, (const void *const)block_format) )
 			return NULL;
-	}		
+	}
+	
+	//Make first inode the root directory 
+	//first inode is in block 17, first inode in that block
+	//The inode will point to an open datablock, maybe just 48
+	//block will contain directory entries
+	inode_t root;
+	root.type = FS_DIRECTORY;
+	root.file_size = 512; //only going to point to one block since it is directory
+	root.directPtrs[0] = 48; //points to first block because why not
+	inode_t temp[8]; //will be temp storage for formatted block
+	if(!block_store_read((block_store_t *const)bs, (const unsigned) 17, (void *const)temp))
+		return NULL;
+	temp[0] = root; //put inode 0 to be root directory inode 
+
+	if(!block_store_write( (block_store_t *const)bs, (const unsigned) 17, (const void *const)temp))
+		return NULL;			
+	//inode written, now we have to format the block we want to format the block we pointed to in the inode to be array of directory entries
+
+	directory_entry_t directory_data[7];
+	void* temp_block = &directory_data;
+	if (!block_store_write((block_store_t *const)bs, (const unsigned) 48, (const void *const)temp_block))
+		return NULL;
+	
 	//if we made it here, we have formatted the block store, so all that is left is to create the FS object, fill it, then return it
+	
 	F16FS_t *fs = (F16FS_t*)malloc(sizeof(F16FS_t) );
 
 	if (fs == NULL)

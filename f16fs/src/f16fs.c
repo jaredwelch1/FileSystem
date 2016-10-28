@@ -156,3 +156,68 @@ int fs_unmount(F16FS_t *fs){
 
 	return 0;
 }
+
+/* Begin Psuedo for milestone 2
+int fs_create(F16FS_t *fs,  const char *path, file_t type){
+	if (path == NULL, type is invalid, path doesnt start at root)
+		return -1
+	currFile = '/'
+	currnodeIndex = 0
+	
+	while (currFile != path.fileName)
+		node = node at currnodeIndex
+		get next directory from inside node
+			return -1 if not found
+		currnodeIndex = index of next directory
+		
+	node_t new_node;
+	new_node->parentIndex = currnodeIndex
+	new_node->size = 0
+	
+	if no room in last directory
+		return -1
+
+	put new node index into bottom directory entry table
+	return success 	
+}
+
+int fs_open(F16FS_t *fs, const char *path)
+	//same logic as create, loop through directories, get to inode of file from path, return error if not found
+	//save file inode index from path 
+
+	//once at file, loop through file descriptor table for an open spot
+	available_index = 0
+	while (fs->descriptor_table != -1){
+		available_index++
+		
+		if available_index > 255 
+			return -1
+
+	}
+	fs->table[available_index].inodeIndex = file_inode_index
+	fs->table[available_index].offset = 0;
+	return available_index
+
+
+int fs_close(F16FS_t *fs, int fd)
+	if fd < 0 || fd > 255
+		return -1
+
+	fs->table[fd].inodeIndex = -1;
+	fs->table[fd].offset = -1;
+	return 1
+
+
+fs_get_dir
+	//same idea as others, loop through path to get to directory desired, return errors if incorrect path
+	
+	//should have inode of director after looping
+	
+	directory_entr[7] = get_data(inode index);
+
+	//now have the entries for this directory, so we can just make a dyn array with those entries 
+	
+	dyn_array_import( directory_entry );
+
+	return dyn_array_import
+*/

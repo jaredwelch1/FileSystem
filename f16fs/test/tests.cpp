@@ -20,9 +20,9 @@ class GradeEnvironment : public testing::Environment {
         score = 0;
         
 #if GRAD_TESTS
-        total = 20;
+        total = 130;
 #else
-        total = 20;
+        total = 130;
 #endif
     }
 
@@ -94,10 +94,8 @@ TEST(a_tests, format_mount_unmount) {
     // MOUNT 3
     ASSERT_EQ(fs_mount(""), nullptr);
 
-    score += 20;
+    score += 5; // congrats, you didn't break it! Have some points.
 }
-
-# if 0
 
 /*
 
@@ -146,11 +144,15 @@ TEST(b_tests, file_creation_one) {
     // CREATE_FILE 2
     ASSERT_EQ(fs_create(fs, filenames[1], FS_DIRECTORY), 0);
 
+    score += 10;
+
     // CREATE_FILE 3
     ASSERT_EQ(fs_create(fs, filenames[2], FS_REGULAR), 0);
 
     // CREATE_FILE 4
     ASSERT_EQ(fs_create(fs, filenames[3], FS_DIRECTORY), 0);
+
+    score += 10;
 
     // CREATE_FILE 5
     ASSERT_LT(fs_create(NULL, filenames[4], FS_REGULAR), 0);
@@ -177,6 +179,8 @@ TEST(b_tests, file_creation_one) {
     // CREATE_FILE 12
     ASSERT_LT(fs_create(fs, filenames[0], FS_REGULAR), 0);
     ASSERT_LT(fs_create(fs, filenames[0], FS_DIRECTORY), 0);
+
+    score += 15;
 
     // CREATE_FILE 13
     ASSERT_LT(fs_create(fs, filenames[5], FS_REGULAR), 0);
@@ -205,7 +209,7 @@ TEST(b_tests, file_creation_one) {
 
     fs_unmount(fs);
 
-    score += 1;
+    score += 20;
 }
 
 TEST(b_tests, file_creation_two) {
@@ -300,7 +304,7 @@ TEST(b_tests, file_creation_two) {
     fs_unmount(fs);
 
     // ... Can't really test 21 yet.
-    score += 1;
+    score += 20;
 }
 
 
@@ -364,6 +368,8 @@ TEST(c_tests, open_close_file) {
     // CLOSE_FILE 7
     ASSERT_LT(fs_close(fs, -18), 0);
 
+    score += 10;
+
     // OPEN_FILE 2
     fd_array[1] = fs_open(fs, filenames[2]);
     ASSERT_GE(fd_array[1], 0);
@@ -389,6 +395,8 @@ TEST(c_tests, open_close_file) {
     // OPEN_FILE 5
     fd_array[5] = fs_open(fs, NULL);
     ASSERT_LT(fd_array[5], 0);
+
+    score += 5;
 
     // OPEN_FILE 6
     // Uhh, bad filename? Not a slash?
@@ -423,8 +431,89 @@ TEST(c_tests, open_close_file) {
 
     fs_unmount(fs);
 
-    score += 1;
+    score += 10;
 }
+
+
+
+/*
+    int fs_get_dir(const F16FS_t *const fs, const char *const fname, dir_rec_t *const records)
+    1. Normal, root I guess?
+    2. Normal, subdir somewhere
+    3. Normal, empty dir
+    4. Error, bad path
+    5. Error, NULL fname
+    6. Error, NULL fs
+    7. Error, not a directory
+*/
+TEST(f_tests, get_dir) {
+    vector<const char *> fnames{
+        "/file", "/folder", "/folder/with_file", "/folder/with_folder", "/DOESNOTEXIST", "/file/BAD_REQUEST",
+        "/DOESNOTEXIST/with_file", "/folder/with_file/bad_req", "folder/missing_slash", "/folder/new_folder/",
+        "/folder/withwaytoolongfilenamethattakesupmorespacethanitshould and yet was not enough so I had to add "
+        "more/bad_req",
+        "/folder/withfilethatiswayyyyytoolongwhydoyoumakefilesthataretoobigEXACT!", "/", "/mystery_file"};
+
+    const char *test_fname = "f_tests.f16fs";
+
+    ASSERT_EQ(system("cp c_tests.f16fs f_tests.f16fs"), 0);
+
+    F16FS_t *fs = fs_mount(test_fname);
+    ASSERT_NE(fs, nullptr);
+
+    // FS_GET_DIR 1
+    dyn_array_t *record_results = fs_get_dir(fs, "/");
+    ASSERT_NE(record_results, nullptr);
+
+    ASSERT_TRUE(find_in_directory(record_results, "file"));
+    ASSERT_TRUE(find_in_directory(record_results, "folder"));
+    ASSERT_EQ(dyn_array_size(record_results), 2);
+
+    dyn_array_destroy(record_results);
+
+    // FS_GET_DIR 2
+    record_results = fs_get_dir(fs, fnames[1]);
+    ASSERT_NE(record_results, nullptr);
+
+    ASSERT_TRUE(find_in_directory(record_results, "with_file"));
+    ASSERT_TRUE(find_in_directory(record_results, "with_folder"));
+    ASSERT_EQ(dyn_array_size(record_results), 2);
+
+    dyn_array_destroy(record_results);
+
+    // FS_GET_DIR 3
+    record_results = fs_get_dir(fs, fnames[3]);
+    ASSERT_NE(record_results, nullptr);
+
+    ASSERT_EQ(dyn_array_size(record_results), 0);
+
+    dyn_array_destroy(record_results);
+
+    score += 10;
+
+    // FS_GET_DIR 4
+    record_results = fs_get_dir(fs, fnames[9]);
+    ASSERT_EQ(record_results, nullptr);
+
+    // FS_GET_DIR 5
+    record_results = fs_get_dir(fs, NULL);
+    ASSERT_EQ(record_results, nullptr);
+
+    // FS_GET_DIR 6
+    record_results = fs_get_dir(NULL, fnames[3]);
+    ASSERT_EQ(record_results, nullptr);
+
+    // FS_GET_DIR 7
+    record_results = fs_get_dir(fs, fnames[0]);
+    ASSERT_EQ(record_results, nullptr);
+
+    fs_unmount(fs);
+
+    score += 15;
+}
+
+
+#if 0
 
 /*
     ssize_t fs_write(F16FS_t *fs, int fd, const void *src, size_t nbyte);
@@ -710,79 +799,6 @@ TEST(e_tests, remove_file) {
     score += 1;
 }
 
-/*
-    int fs_get_dir(const F16FS_t *const fs, const char *const fname, dir_rec_t *const records)
-    1. Normal, root I guess?
-    2. Normal, subdir somewhere
-    3. Normal, empty dir
-    4. Error, bad path
-    5. Error, NULL fname
-    6. Error, NULL fs
-    7. Error, not a directory
-*/
-TEST(f_tests, get_dir) {
-    vector<const char *> fnames{
-        "/file", "/folder", "/folder/with_file", "/folder/with_folder", "/DOESNOTEXIST", "/file/BAD_REQUEST",
-        "/DOESNOTEXIST/with_file", "/folder/with_file/bad_req", "folder/missing_slash", "/folder/new_folder/",
-        "/folder/withwaytoolongfilenamethattakesupmorespacethanitshould and yet was not enough so I had to add "
-        "more/bad_req",
-        "/folder/withfilethatiswayyyyytoolongwhydoyoumakefilesthataretoobigEXACT!", "/", "/mystery_file"};
-
-    const char *test_fname = "f_tests.f16fs";
-
-    ASSERT_EQ(system("cp c_tests.f16fs f_tests.f16fs"), 0);
-
-    F16FS_t *fs = fs_mount(test_fname);
-    ASSERT_NE(fs, nullptr);
-
-    // FS_GET_DIR 1
-    dyn_array_t *record_results = fs_get_dir(fs, "/");
-    ASSERT_NE(record_results, nullptr);
-
-    ASSERT_TRUE(find_in_directory(record_results, "file"));
-    ASSERT_TRUE(find_in_directory(record_results, "folder"));
-    ASSERT_EQ(dyn_array_size(record_results), 2);
-
-    dyn_array_destroy(record_results);
-
-    // FS_GET_DIR 2
-    record_results = fs_get_dir(fs, fnames[1]);
-    ASSERT_NE(record_results, nullptr);
-
-    ASSERT_TRUE(find_in_directory(record_results, "with_file"));
-    ASSERT_TRUE(find_in_directory(record_results, "with_folder"));
-    ASSERT_EQ(dyn_array_size(record_results), 2);
-
-    dyn_array_destroy(record_results);
-
-    // FS_GET_DIR 3
-    record_results = fs_get_dir(fs, fnames[3]);
-    ASSERT_NE(record_results, nullptr);
-
-    ASSERT_EQ(dyn_array_size(record_results), 0);
-
-    dyn_array_destroy(record_results);
-
-    // FS_GET_DIR 4
-    record_results = fs_get_dir(fs, fnames[9]);
-    ASSERT_EQ(record_results, nullptr);
-
-    // FS_GET_DIR 5
-    record_results = fs_get_dir(fs, NULL);
-    ASSERT_EQ(record_results, nullptr);
-
-    // FS_GET_DIR 6
-    record_results = fs_get_dir(NULL, fnames[3]);
-    ASSERT_EQ(record_results, nullptr);
-
-    // FS_GET_DIR 7
-    record_results = fs_get_dir(fs, fnames[0]);
-    ASSERT_EQ(record_results, nullptr);
-
-    fs_unmount(fs);
-
-    score += 25;
-}
 
 /*
     off_t fs_seek(F16FS_t *fs, int fd, off_t offset, seek_t whence)

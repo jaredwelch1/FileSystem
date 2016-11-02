@@ -32,5 +32,6 @@ Algorithmns, structures, diagrams, pseudocode. Refer to the assignment document.
 1. fs_write
 2. fs_read
 3. fs_seek
-4. fs_move (Graduate / undergrad bonus)
-5. fs_link (Graduate / undergrad bonus)
+4. fs_remove
+5. fs_move (Graduate / undergrad bonus)
+6. fs_link (Graduate / undergrad bonus)

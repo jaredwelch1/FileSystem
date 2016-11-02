@@ -1,12 +1,12 @@
 cmake_minimum_required (VERSION 2.8)
 project(block_store)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -Wall -Wextra -Wshadow -Wpedantic -D_XOPEN_SOURCE=500")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -Wall -Wextra -Wshadow -Wpedantic -D_XOPEN_SOURCE=700")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELEASE} -g")
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -Wextra -Wshadow -Wpedantic -D_XOPEN_SOURCE=500")
+set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -Wextra -Wshadow -Wpedantic -D_XOPEN_SOURCE=700")
 
 if (NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE RelWithDebInfo)

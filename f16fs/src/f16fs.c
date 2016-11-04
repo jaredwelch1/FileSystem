@@ -66,11 +66,11 @@ F16FS_t *fs_format(const char *path){
 	if (bs == NULL)
 		return NULL;
 	
-	//now we have a block store created at file, so, we must format the first 32 blocks to be inodes
-	
+	//now we have a block store created at file, so, we must format the first 32 blocks to be inode
 	for ( i = 16; i < INODE_BLOCK_COUNT + 16; i++){ //start at 16 since we cant use the first 16(0-15) blocks 
 		inode_t block_format[8]; //8 inode per block
 		int j = 0;
+		
 		for (j = 0; j < 8; j++)
 				block_format[j].refCount = -1;
 		if( !block_store_request((block_store_t *const)bs, (const unsigned)i) ){
@@ -87,7 +87,7 @@ F16FS_t *fs_format(const char *path){
 		if ( ! block_store_write( (block_store_t *const)bs, (const unsigned) i, (const void *const)block_format) )
 			return NULL;
 	}
-	
+
 	//Make first inode the root directory 
 	//first inode is in block 17, first inode in that block
 	//The inode will point to an open datablock, maybe just 48
@@ -113,6 +113,8 @@ F16FS_t *fs_format(const char *path){
 		directory_data[i].fname[0] = '\0';
 	}
 	void* temp_block = &directory_data;
+	if (!block_store_request(bs, 48) )
+		return NULL;
 	if (!block_store_write((block_store_t *const)bs, (const unsigned) 48, (const void *const)temp_block))
 		return NULL;
 	
@@ -360,11 +362,11 @@ int traverse_path(F16FS_t *fs, const char *path, bool existingFile){
 		}
 		if ( path[i] != (char)0 ){
 			i++;
-			temp[j+1] = '\0';
+			temp[j] = '\0';
 			dyn_array_push_front(ordered_list, temp);	
 			free(temp);
 		} else if (existingFile){
-			temp[j+1] = '\0';	
+			temp[j] = '\0';	
 			dyn_array_push_front(ordered_list, temp);
 			free(temp);
 

@@ -220,7 +220,7 @@ TEST(b_tests, file_creation_one) {
 
     score += 20;
 }
-#if 0
+
 TEST(b_tests, file_creation_two) {
     // CREATE_FILE 19 - OUT OF INODES (and test 18 along the way)
     // Gotta make... Uhh... A bunch of files. (255, but we'll need directories to hold them as well)
@@ -315,7 +315,7 @@ TEST(b_tests, file_creation_two) {
     // ... Can't really test 21 yet.
     score += 20;
 }
-
+#if 0
 /*
     int fs_open(F16FS_t *fs, const char *path)
     1. Normal, file at root

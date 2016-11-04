@@ -9,6 +9,7 @@ extern "C" {
 #include <dyn_array.h>
 
 typedef struct F16FS F16FS_t;
+typedef struct inode inode_t;
 
 typedef enum { FS_SEEK_SET, FS_SEEK_CUR, FS_SEEK_END } seek_t;
 
@@ -23,6 +24,7 @@ typedef struct {
     char name[FS_FNAME_MAX];
     file_t type;
 } file_record_t;
+
 
 
 //struct for a file descriptor entry 
@@ -130,6 +132,7 @@ ssize_t fs_write(F16FS_t *fs, int fd, const void *src, size_t nbyte);
 ///
 int fs_remove(F16FS_t *fs, const char *path);
 
+
 ///
 /// Populates a dyn_array with information about the files in a directory
 ///   Array contains up to 7 file_record_t structures
@@ -139,7 +142,12 @@ int fs_remove(F16FS_t *fs, const char *path);
 ///
 dyn_array_t *fs_get_dir(F16FS_t *fs, const char *path);
 
-///
+int traverse_path(F16FS_t *fs, const char *path, bool fileExists);
+
+int creation_traversal(F16FS_t *fs, const char *path);
+
+bool get_inode(F16FS_t *fs, int index, inode_t *);
+
 /// !!! Graduate Level/Undergrad Bonus !!!
 /// !!! Activate tests from the cmake !!!
 ///

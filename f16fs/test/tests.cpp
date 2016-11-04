@@ -97,6 +97,16 @@ TEST(a_tests, format_mount_unmount) {
     score += 5; // congrats, you didn't break it! Have some points.
 }
 
+TEST(test_traversal, test_root_at_start){
+	const char *test_name = "a_tests.f16fs";	
+	F16FS_t *fs = NULL;
+	
+	fs = fs_mount(test_name);
+	const char *path = "test";
+	ASSERT_EQ(-1, traverse_path(fs, path, false));
+	fs_unmount(fs);
+}
+
 /*
 
 int fs_create(F16FS_t *const fs, const char *const fname, const ftype_t ftype);
@@ -121,7 +131,6 @@ int fs_create(F16FS_t *const fs, const char *const fname, const ftype_t ftype);
     19. Error, directory full.
     20. Error, out of inodes.
     21. Error, out of data blocks & file is directory (requires functional write)
-
 */
 
 TEST(b_tests, file_creation_one) {
@@ -137,18 +146,18 @@ TEST(b_tests, file_creation_one) {
     F16FS_t *fs = fs_format(test_fname);
 
     ASSERT_NE(fs, nullptr);
-
-    // CREATE_FILE 1
+		
+	// CREATE_FILE 1
     ASSERT_EQ(fs_create(fs, filenames[0], FS_REGULAR), 0);
-
+	
     // CREATE_FILE 2
     ASSERT_EQ(fs_create(fs, filenames[1], FS_DIRECTORY), 0);
-
+	
     score += 10;
-
+		
     // CREATE_FILE 3
     ASSERT_EQ(fs_create(fs, filenames[2], FS_REGULAR), 0);
-
+		
     // CREATE_FILE 4
     ASSERT_EQ(fs_create(fs, filenames[3], FS_DIRECTORY), 0);
 
@@ -206,12 +215,12 @@ TEST(b_tests, file_creation_one) {
     ASSERT_LT(fs_create(fs, filenames[11], FS_REGULAR), 0);
 
     // Closing this file now for inspection to make sure these tests didn't mess it up
-
+	
     fs_unmount(fs);
 
     score += 20;
 }
-
+#if 0
 TEST(b_tests, file_creation_two) {
     // CREATE_FILE 19 - OUT OF INODES (and test 18 along the way)
     // Gotta make... Uhh... A bunch of files. (255, but we'll need directories to hold them as well)
@@ -306,7 +315,6 @@ TEST(b_tests, file_creation_two) {
     // ... Can't really test 21 yet.
     score += 20;
 }
-
 
 /*
     int fs_open(F16FS_t *fs, const char *path)
@@ -1171,7 +1179,7 @@ TEST(i_tests, move) {
 TEST(j_tests, link) {
     
 }
-
+#endif
 #endif
 #endif
 

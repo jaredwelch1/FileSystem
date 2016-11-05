@@ -29,7 +29,7 @@ typedef struct {
 
 //struct for a file descriptor entry 
 typedef struct {
-	unsigned short int inode_index; //file reference 
+	int inode_index; //file reference 
 	size_t offset; //Offset of bytes for file descriptor
 } file_descriptor_t;
 
@@ -143,7 +143,7 @@ int fs_remove(F16FS_t *fs, const char *path);
 dyn_array_t *fs_get_dir(F16FS_t *fs, const char *path);
 
 int traverse_path(F16FS_t *fs, const char *path, bool fileExists);
-
+int existing_traversal(F16FS_t *, const char *);
 int creation_traversal(F16FS_t *fs, const char *path);
 
 bool get_inode(F16FS_t *fs, int index, inode_t *);

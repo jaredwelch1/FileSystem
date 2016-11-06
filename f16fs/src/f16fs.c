@@ -125,8 +125,9 @@ F16FS_t *fs_format(const char *path){
 	if (fs == NULL)
 		return NULL;
 
-	fs->bs = bs;
-
+	fs->bs = bs;	
+	for (i = 0; i < 256; i++)
+		fs->file_descriptor_table[i].inode_index = -1;
 	return fs;
 }
 
@@ -160,7 +161,9 @@ F16FS_t *fs_mount(const char *path){
 		return NULL;
 
 	fs->bs = bs;
-
+	for (i = 0; i < 256; i++){
+		fs->file_descriptor_table[i].inode_index = -1;
+	}
 	//since the file itself should have been a block store that is formatted correctly, I think we are done? 
 	
 	return fs;
@@ -301,14 +304,40 @@ int fs_open(F16FS_t *fs, const char *path){
 	if (fs == NULL || path == NULL)
 		return -1;		
 
-	//traverse_path(fs, path);
-	return -1;
+	int index = existing_traversal(fs, path);
+	
+	if (index < 0)
+		return -1;
+
+	int open_fd_index = -1;
+	int i;
+	for (i = 0; i < 256; i++){
+		if (fs->file_descriptor_table[i].inode_index < 0){
+			open_fd_index = i;
+			i = 256;
+		}
+			
+	}
+	if (open_fd_index < 0)
+		return -1;
+	size_t offset = 0;
+	file_descriptor_t temp;
+	temp.inode_index = index;
+	temp.offset = offset;
+	
+	fs->file_descriptor_table[open_fd_index] = temp; //.inode_index = index;
+	fs->file_descriptor_table[open_fd_index].offset = offset;
+	return open_fd_index;
 }
 
 int fs_close(F16FS_t *fs, int fd){
 	if (fd < 0 || fd > 255 || fs == NULL)
 		return -1;
-	return -1;
+	
+	if( fs->file_descriptor_table[fd].inode_index < 0)
+		return -1;
+	fs->file_descriptor_table[fd].inode_index = -1;
+	return 0;
 }
 
 
@@ -400,17 +429,13 @@ int traverse_path(F16FS_t *fs, const char *path, bool existingFile){
 		//if fileExists, then we should be at a file, 
 		//if file does not exist, then we should be at a directory 
 		if( dyn_array_empty(ordered_list) ){
-			if( existingFile && temp->type != FS_REGULAR ){
-					free(temp);
-					free(fname);
-					dyn_array_destroy(ordered_list);			
-					return -1; 
-			} else if ( !existingFile && temp->type != FS_DIRECTORY ) {
+		 	if ( !existingFile && temp->type != FS_DIRECTORY ) {
 					free(temp);
 					free(fname);
 					dyn_array_destroy(ordered_list);
 					return -1;
 			}
+
 		}
 		//should be directory, if not, error
 		//THINK THROUGH
@@ -429,8 +454,9 @@ int traverse_path(F16FS_t *fs, const char *path, bool existingFile){
 		nodeIndex = -1;
 		for (i = 0; i < 7; i++){
 			if ( entries[i].inode_index != -1){
-				if( strcmp(fname, entries[i].fname) == 0) //found what we want
+				if( strcmp(fname, entries[i].fname) == 0){ //found what we want
 					nodeIndex = entries[i].inode_index;
+				}
 			}
 		}
 		if (nodeIndex == -1){ //we never found the right directory
@@ -439,11 +465,17 @@ int traverse_path(F16FS_t *fs, const char *path, bool existingFile){
 			dyn_array_destroy(ordered_list);
 			return -1;
 		} 
-	free(temp);
+		
 	free(fname);
+	free(temp);
 	}
-	
+
+	inode_t testNode;
+
 	dyn_array_destroy(ordered_list);
+	get_inode(fs, nodeIndex, &testNode);
+	if(existingFile && testNode.type == FS_DIRECTORY)
+		nodeIndex = -1;
 	return nodeIndex;		
 }
 
@@ -452,6 +484,13 @@ int creation_traversal(F16FS_t *fs, const char *path){
 		return -1;
 
 	return traverse_path(fs, path, false);
+}
+
+int existing_traversal(F16FS_t *fs, const char *path){
+	if (fs == NULL || path == NULL)
+		return -1;
+
+	return traverse_path(fs, path, true);
 }
 
 bool get_inode(F16FS_t *fs, int index, inode_t *node){

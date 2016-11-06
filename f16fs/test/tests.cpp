@@ -315,7 +315,7 @@ TEST(b_tests, file_creation_two) {
     // ... Can't really test 21 yet.
     score += 20;
 }
-#if 0
+
 /*
     int fs_open(F16FS_t *fs, const char *path)
     1. Normal, file at root
@@ -442,7 +442,7 @@ TEST(c_tests, open_close_file) {
     score += 10;
 }
 
-
+#if 0
 
 /*
     int fs_get_dir(const F16FS_t *const fs, const char *const fname, dir_rec_t *const records)

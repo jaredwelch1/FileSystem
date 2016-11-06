@@ -325,8 +325,8 @@ int fs_open(F16FS_t *fs, const char *path){
 	temp.inode_index = index;
 	temp.offset = offset;
 	
-	fs->file_descriptor_table[open_fd_index] = temp; //.inode_index = index;
-	fs->file_descriptor_table[open_fd_index].offset = offset;
+	fs->file_descriptor_table[open_fd_index] = temp;	
+
 	return open_fd_index;
 }
 
@@ -344,7 +344,35 @@ int fs_close(F16FS_t *fs, int fd){
 dyn_array_t *fs_get_dir(F16FS_t *fs, const char *path){
 	if (fs == NULL || path == NULL)
 		return NULL;
-	return NULL;
+
+	int index = existing_traversal_directory(fs, path);
+	
+
+	if (path[0] == '/' && path[1] == (char)0){
+		index = 0;	
+	}
+		if (index < 0)
+		return NULL;
+
+	
+	inode_t dir;
+	get_inode(fs, index, &dir);
+	dyn_array_t *directories = dyn_array_create( 0, sizeof(char) * FS_NAME_MAX, NULL);	
+	int i;
+	int blockId = dir.directPtrs[0];
+	directory_entry_t *entries;
+	char tmp_block[512];
+	block_store_read(fs->bs, blockId, tmp_block);
+	entries = (directory_entry_t*)tmp_block;
+	char fname[64];
+	for (i = 0; i < 7; i++){
+		if ( entries[i].inode_index != -1){
+			memcpy(fname, entries[i].fname, 64);
+			dyn_array_push_front( directories, fname);
+		}
+	}
+	return directories;
+
 }
 
 
@@ -361,7 +389,7 @@ dyn_array_t *fs_get_dir(F16FS_t *fs, const char *path){
 //new file inside
 
 
-int traverse_path(F16FS_t *fs, const char *path, bool existingFile){
+int traverse_path(F16FS_t *fs, const char *path, bool existingFile, bool getDir){
 	if (fs == NULL || path == NULL || path[0] != '/')
 		return -1;
 	//if we get here, starts with root, so lets move forward with that assumption.
@@ -474,7 +502,9 @@ int traverse_path(F16FS_t *fs, const char *path, bool existingFile){
 
 	dyn_array_destroy(ordered_list);
 	get_inode(fs, nodeIndex, &testNode);
-	if(existingFile && testNode.type == FS_DIRECTORY)
+	if(existingFile && !getDir && testNode.type == FS_DIRECTORY)
+		nodeIndex = -1;
+	else if (existingFile && getDir && testNode.type == FS_REGULAR)
 		nodeIndex = -1;
 	return nodeIndex;		
 }
@@ -483,14 +513,21 @@ int creation_traversal(F16FS_t *fs, const char *path){
 	if (fs == NULL || path == NULL)
 		return -1;
 
-	return traverse_path(fs, path, false);
+	return traverse_path(fs, path, false, false);
 }
 
 int existing_traversal(F16FS_t *fs, const char *path){
 	if (fs == NULL || path == NULL)
 		return -1;
 
-	return traverse_path(fs, path, true);
+	return traverse_path(fs, path, true, false);
+}
+
+int existing_traversal_directory(F16FS_t *fs, const char *path){
+	if (fs == NULL || path == NULL)
+		return -1;
+
+	return traverse_path(fs, path, true, true);
 }
 
 bool get_inode(F16FS_t *fs, int index, inode_t *node){

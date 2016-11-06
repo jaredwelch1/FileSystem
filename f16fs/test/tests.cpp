@@ -103,7 +103,7 @@ TEST(test_traversal, test_root_at_start){
 	
 	fs = fs_mount(test_name);
 	const char *path = "test";
-	ASSERT_EQ(-1, traverse_path(fs, path, false));
+	ASSERT_EQ(-1, traverse_path(fs, path, false, false));
 	fs_unmount(fs);
 }
 
@@ -442,7 +442,6 @@ TEST(c_tests, open_close_file) {
     score += 10;
 }
 
-#if 0
 
 /*
     int fs_get_dir(const F16FS_t *const fs, const char *const fname, dir_rec_t *const records)
@@ -520,7 +519,7 @@ TEST(f_tests, get_dir) {
     score += 15;
 }
 
-
+#if 0
 #if 0
 
 /*

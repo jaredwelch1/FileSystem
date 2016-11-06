@@ -142,9 +142,10 @@ int fs_remove(F16FS_t *fs, const char *path);
 ///
 dyn_array_t *fs_get_dir(F16FS_t *fs, const char *path);
 
-int traverse_path(F16FS_t *fs, const char *path, bool fileExists);
+int traverse_path(F16FS_t *fs, const char *path, bool fileExists, bool);
 int existing_traversal(F16FS_t *, const char *);
 int creation_traversal(F16FS_t *fs, const char *path);
+int existing_traversal_directory(F16FS_t *, const char *);
 
 bool get_inode(F16FS_t *fs, int index, inode_t *);
 

@@ -20,9 +20,9 @@ class GradeEnvironment : public testing::Environment {
         score = 0;
         
 #if GRAD_TESTS
-        total = 130;
+        total = 170;
 #else
-        total = 130;
+        total = 140;
 #endif
     }
 
@@ -95,7 +95,7 @@ TEST(a_tests, format_mount_unmount) {
     // MOUNT 3
     ASSERT_EQ(fs_mount(""), nullptr);
 
-    score += 5; // congrats, you didn't break it! Have some points.
+    score += 2; // congrats, you didn't break it! Have some points.
 }
 
 /*
@@ -145,15 +145,11 @@ TEST(b_tests, file_creation_one) {
     // CREATE_FILE 2
     ASSERT_EQ(fs_create(fs, filenames[1], FS_DIRECTORY), 0);
 
-    score += 10;
-
     // CREATE_FILE 3
     ASSERT_EQ(fs_create(fs, filenames[2], FS_REGULAR), 0);
 
     // CREATE_FILE 4
     ASSERT_EQ(fs_create(fs, filenames[3], FS_DIRECTORY), 0);
-
-    score += 10;
 
     // CREATE_FILE 5
     ASSERT_LT(fs_create(NULL, filenames[4], FS_REGULAR), 0);
@@ -180,8 +176,6 @@ TEST(b_tests, file_creation_one) {
     // CREATE_FILE 12
     ASSERT_LT(fs_create(fs, filenames[0], FS_REGULAR), 0);
     ASSERT_LT(fs_create(fs, filenames[0], FS_DIRECTORY), 0);
-
-    score += 15;
 
     // CREATE_FILE 13
     ASSERT_LT(fs_create(fs, filenames[5], FS_REGULAR), 0);
@@ -210,7 +204,7 @@ TEST(b_tests, file_creation_one) {
 
     fs_unmount(fs);
 
-    score += 20;
+    score += 2;
 }
 
 TEST(b_tests, file_creation_two) {
@@ -305,7 +299,7 @@ TEST(b_tests, file_creation_two) {
     fs_unmount(fs);
 
     // ... Can't really test 21 yet.
-    score += 20;
+    score += 3;
 }
 
 
@@ -369,8 +363,6 @@ TEST(c_tests, open_close_file) {
     // CLOSE_FILE 7
     ASSERT_LT(fs_close(fs, -18), 0);
 
-    score += 10;
-
     // OPEN_FILE 2
     fd_array[1] = fs_open(fs, filenames[2]);
     ASSERT_GE(fd_array[1], 0);
@@ -396,8 +388,6 @@ TEST(c_tests, open_close_file) {
     // OPEN_FILE 5
     fd_array[5] = fs_open(fs, NULL);
     ASSERT_LT(fd_array[5], 0);
-
-    score += 5;
 
     // OPEN_FILE 6
     // Uhh, bad filename? Not a slash?
@@ -432,7 +422,7 @@ TEST(c_tests, open_close_file) {
 
     fs_unmount(fs);
 
-    score += 10;
+    score += 2;
 }
 
 
@@ -490,8 +480,6 @@ TEST(f_tests, get_dir) {
 
     dyn_array_destroy(record_results);
 
-    score += 10;
-
     // FS_GET_DIR 4
     record_results = fs_get_dir(fs, fnames[9]);
     ASSERT_EQ(record_results, nullptr);
@@ -510,11 +498,9 @@ TEST(f_tests, get_dir) {
 
     fs_unmount(fs);
 
-    score += 15;
+    score += 3;
 }
 
-
-#if 0
 
 /*
     ssize_t fs_write(F16FS_t *fs, int fd, const void *src, size_t nbyte);
@@ -591,6 +577,8 @@ TEST(d_tests, write_file_simple) {
     // FS_WRITE 4
     ASSERT_EQ(fs_write(fs, fd_array[1], two_nine + 512, 512), 512);
 
+    score += 10;
+
     // FS_WRITE 5
     ASSERT_EQ(fs_write(fs, fd_array[2], large_eight_five_b_seven + 555 + 888, 1024), 1024);
 
@@ -632,7 +620,7 @@ TEST(d_tests, write_file_simple) {
     // And I'm going to unmount without closing.
 
     fs_unmount(fs);
-    score += 1;
+    score += 15;
 }
 
 TEST(d_tests, write_file_fill) {
@@ -691,6 +679,8 @@ TEST(d_tests, write_file_fill) {
     blocks += 3;
     // +2 because dbl indirect and the indirect
 
+    score += 7;
+
     uint8_t *giant_data_hunk = new (std::nothrow) uint8_t[512 * 256]; // an entire indirect block
     ASSERT_NE(giant_data_hunk, nullptr);
     memset(giant_data_hunk, 0x6E, 512 * 256);
@@ -721,7 +711,7 @@ TEST(d_tests, write_file_fill) {
 
     fs_unmount(fs);
 
-    score += 1;
+    score += 12;
 }
 
 /*
@@ -752,6 +742,8 @@ TEST(e_tests, remove_file) {
     ASSERT_EQ(system("cp d_tests_full.f16fs e_tests_a.f16fs"), 0);
     ASSERT_EQ(system("cp c_tests.f16fs e_tests_b.f16fs"), 0);
 
+    dyn_array_t *record_results = NULL;
+
     F16FS_t *fs = fs_mount(test_fname[1]);
     ASSERT_NE(fs, nullptr);
 
@@ -761,8 +753,27 @@ TEST(e_tests, remove_file) {
     // FS_REMOVE 2
     ASSERT_EQ(fs_remove(fs, b_fnames[2]), 0);
 
+    record_results = fs_get_dir(fs, b_fnames[1]);
+    ASSERT_NE(record_results, nullptr);
+
+    ASSERT_FALSE(find_in_directory(record_results, "with_file"));
+    ASSERT_TRUE(find_in_directory(record_results, "with_folder"));
+    ASSERT_EQ(dyn_array_size(record_results), 1);
+
+    dyn_array_destroy(record_results);
+
+
     // FS_REMOVE 5
     ASSERT_LT(fs_remove(fs, b_fnames[1]), 0);
+    
+    record_results = fs_get_dir(fs, b_fnames[12]);
+    ASSERT_NE(record_results, nullptr);
+
+    ASSERT_TRUE(find_in_directory(record_results, "file"));
+    ASSERT_TRUE(find_in_directory(record_results, "folder"));
+    ASSERT_EQ(dyn_array_size(record_results), 2);
+
+    dyn_array_destroy(record_results);
 
 
     ASSERT_EQ(fs_remove(fs, b_fnames[3]), 0);
@@ -770,8 +781,19 @@ TEST(e_tests, remove_file) {
     // FS_REMOVE 3
     ASSERT_EQ(fs_remove(fs, b_fnames[1]), 0);
 
+    record_results = fs_get_dir(fs, b_fnames[12]);
+    ASSERT_NE(record_results, nullptr);
+
+    ASSERT_TRUE(find_in_directory(record_results, "file"));
+    ASSERT_FALSE(find_in_directory(record_results, "folder"));
+    ASSERT_EQ(dyn_array_size(record_results), 1);
+
+    dyn_array_destroy(record_results);
+
 
     fs_unmount(fs);
+
+    score += 15;
 
 
     fs = fs_mount(test_fname[0]);
@@ -797,7 +819,7 @@ TEST(e_tests, remove_file) {
 
     fs_unmount(fs);
 
-    score += 1;
+    score += 12;
 }
 
 
@@ -865,7 +887,7 @@ TEST(g_tests, seek) {
 
     fs_unmount(fs);
 
-    score += 13;
+    score += 15;
 }
 
 /*
@@ -927,6 +949,8 @@ TEST(h_tests, read) {
     ASSERT_EQ(nbyte, 1024);
     ASSERT_EQ(memcmp(write_space, large_eight_five_b_seven + 512, 1024), 0);
 
+    score += 15;
+
     // FS_READ 5
     ASSERT_EQ(fs_seek(fs, fd, 2560, FS_SEEK_SET), 2560);
     nbyte = fs_read(fs, fd, &write_space, 1024);
@@ -939,8 +963,6 @@ TEST(h_tests, read) {
     ASSERT_EQ(nbyte, 1024);
     ASSERT_EQ(memcmp(write_space, large_eight_five_b_seven + (512 * 4), 512), 0);
     ASSERT_EQ(memcmp(write_space + 512, large_eight_five_b_seven, 512), 0);
-
-    score += 15;
 
     // FS_READ 7
     ASSERT_EQ(fs_seek(fs, fd, 517 * 512, FS_SEEK_SET), 517 * 512);
@@ -976,7 +998,7 @@ TEST(h_tests, read) {
 
     fs_unmount(fs);
 
-    score += 20;
+    score += 12;
 }
 
 #ifdef GRAD_TESTS
@@ -1055,6 +1077,8 @@ TEST(i_tests, move) {
     ASSERT_TRUE(find_in_directory(record_results, "new_location"));
     ASSERT_EQ(dyn_array_size(record_results), 2);
     dyn_array_destroy(record_results);
+
+    score += 5;
 
     // FS_MOVE 4
     ASSERT_LT(fs_move(fs, "/folder/new_location", fnames[1]), 0);
@@ -1146,7 +1170,7 @@ TEST(i_tests, move) {
 
     fs_unmount(fs);
 
-    score += 15;
+    score += 10;
 }
 
 /*
@@ -1170,10 +1194,10 @@ TEST(i_tests, move) {
 */
 
 TEST(j_tests, link) {
-    
+    ASSERT_TRUE(false); // No, you don't get points for just turning the tests on
+    score += 15;
 }
 
-#endif
 #endif
 
 int main(int argc, char **argv) {

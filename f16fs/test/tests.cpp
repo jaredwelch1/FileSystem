@@ -1000,8 +1000,8 @@ TEST(h_tests, read) {
 
     score += 12;
 }
-#if 0
-#ifdef GRAD_TESTS
+
+#if GRAD_TESTS
 
 /*
     int fs_move(F16FS_t *fs, const char *src, const char *dst);

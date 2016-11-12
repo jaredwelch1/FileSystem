@@ -584,3 +584,9 @@ int fs_remove(F16FS_t *fs, const char *path){
 		return -1;
 	return -1;
 }
+
+
+//takes in relativeIndex for file block (0-5 for direct, 6-1029 for 1stDirect, `
+int get_actual_block_index(int relativeIndex, node_t node){
+	if 
+}

@@ -555,3 +555,32 @@ bool write_inode(F16FS_t *fs, int index, inode_t *new_node){
 	block_store_write(fs->bs, block, nodes);
 	return true;
 }
+
+off_t fs_seek(F16FS_t *fs, int fd, off_t offset, seek_t whence){
+	if (fs == NULL || fd < 0 || offset < 0 || whence < 0)
+		return -1;
+	return -1;
+}
+
+ssize_t fs_read(F16FS_t *fs, int fd, void *dst, size_t nbyte){
+	if (fs == NULL || fd < 0 || dst == NULL)
+		return -1;
+	if(nbyte)
+	return -1;
+	return -1;
+}
+
+ssize_t fs_write(F16FS_t *fs, int fd, const void *src, size_t nbyte){
+	if (fs == NULL || fd < 0 || src == NULL)
+		return -1;
+
+	if(nbyte)
+	return -1;
+	return -1;
+}
+
+int fs_remove(F16FS_t *fs, const char *path){
+	if (fs == NULL || path == NULL || path[0] != '/')
+		return -1;
+	return -1;
+}

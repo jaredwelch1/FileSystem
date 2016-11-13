@@ -583,33 +583,35 @@ ssize_t fs_write(F16FS_t *fs, int fd, const void *src, size_t nbyte){
 	if (nbyte == 0)
 		return 0;
 
-	char temp_block[512]; 	//this will be where we put memory to be written
-							//first read in a free block, memcpy to it, then write that block back in
+	char temp_block[512] ={0}; 	//this will be where we put memory to be written
+								//first read in a free block, memcpy to it, then write that block back in
 
 	size_t currByte = 0; 		//this will allow us to track how man bytes we have written so far, 
-	size_t currOffset; 		//this will tell us where we are currently at within the file as we write
-	int relativeBlock; 		//this will tell us what block we are at, relative to the blocks within a file
-	size_t bytesLeft = nbyte;
+	size_t currOffset = 0; 		//this will tell us where we are currently at within the file as we write
+	int relativeBlock = 0; 		//this will tell us what block we are at, relative to the blocks within a file
+	size_t bytesLeft = 0;
+	bytesLeft = nbyte;
 
 
 	currOffset = fs->file_descriptor_table[fd].offset;
 	//now we need the inode for the file in the fd
 	int inode_ind = fs->file_descriptor_table[fd].inode_index;
-	
+	int block_index = 0;
 	//check if we start in middle of block
 	int block_byte_offset = currOffset % 512; //any bytes over 512 means we are inside a block 
 	relativeBlock = currOffset / 512;
 	if (block_byte_offset > 0){
 		//we are starting inside a block, so read it in the we can write to it then write to block_store
 
-		int block_index = get_actual_block_index(relativeBlock, inode_ind, fs);
+		block_index = get_actual_block_index(relativeBlock, inode_ind, fs);
+		//printf("\nBLOCK INDEX: %d", block_index);		
 		if (block_index < 0)
 			return -1;
 		
 		//we can read
-		block_store_read(fs->bs, block_index, &temp_block);
+		block_store_read(fs->bs, block_index, temp_block);
 		memcpy(temp_block + block_byte_offset, src, 512 - block_byte_offset);
-		block_store_write(fs->bs, block_index, &temp_block); //should be ok
+		block_store_write(fs->bs, block_index, temp_block); //should be ok
 		currByte+=(512- block_byte_offset); 	
 		bytesLeft-=(512-block_byte_offset);
 		currOffset+=(512-block_byte_offset);
@@ -619,12 +621,14 @@ ssize_t fs_write(F16FS_t *fs, int fd, const void *src, size_t nbyte){
 	//once here, we should always be starting with full block.
 	bool file_not_full = true;
 	while (bytesLeft > 511 && file_not_full){
-		int block_index = get_actual_block_index(relativeBlock, inode_ind, fs);
-		if (block_index < 0)
+		block_index = get_actual_block_index(relativeBlock, inode_ind, fs);
+		//printf("\nBLOCK INDEX: %d", block_index);
+		if (block_index < 0){
+			fs->file_descriptor_table[fd].offset+=currByte;	
 			return currByte;
-
+		}
 		memcpy(temp_block, src + currByte, 512);
-		block_store_write(fs->bs, block_index, &temp_block);
+		block_store_write(fs->bs, block_index, temp_block);
 		currByte+=512;
 		bytesLeft-=512;
 		currOffset+=512;
@@ -635,12 +639,15 @@ ssize_t fs_write(F16FS_t *fs, int fd, const void *src, size_t nbyte){
 	}
 
 	if (bytesLeft > 0 && file_not_full){
-		int block_index = get_actual_block_index(relativeBlock, inode_ind, fs);
-		if (block_index < 0)
+		block_index = get_actual_block_index(relativeBlock, inode_ind, fs);
+		//printf("\nBLOCK INDEX: %d", block_index);
+		if (block_index < 0){
+			fs->file_descriptor_table[fd].offset+=currByte;
 			return currByte;
+		}
 
 		memcpy(temp_block, src + currByte, bytesLeft);
-		block_store_write(fs->bs, block_index, &temp_block);
+		block_store_write(fs->bs, block_index, temp_block);
 		currByte += bytesLeft;
 		currOffset+=bytesLeft;
 
@@ -685,11 +692,11 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 			if (block_ind <= 0)
 				return -1;
 			node.indirectOne = block_ind;
+			write_inode(fs, inode_index, &node);
 			int NewBlockInd = block_store_allocate(fs->bs);
 			if (NewBlockInd <= 0)
 				return -1;
-			unsigned int block[256]; //block of pointers fam
-			
+			uint16_t block[256]; //block of pointers fam
 			int i;
 
 			for (i = 0; i < 255; i++)
@@ -702,7 +709,7 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 			//the translations purpose
 			//if we find some errors due to this behavior, that will suck
 
-			block_store_write(fs->bs, block_ind, &block);
+			block_store_write(fs->bs, block_ind, block);
 			//now we have the indirect block pointing to a block of pointers, so we use the free block to be given back
 			//as the block index to be used for a write, it is allocated, but we don't need to do anything other than keep track of it
 			//which we did when we put it into the indirectBlock pointer
@@ -711,8 +718,8 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 		} else { 	//if we get here, then the indirectOne has a block set up already, so find the relative block,
 					//if it exists, great, return its real index
 					//if it is 0, meaning it doesn't exist, get a free block, point to it, then return it
-			unsigned int block[256];
-			block_store_read(fs->bs, block_ind, &block);
+			uint16_t block[256];
+			block_store_read(fs->bs, block_ind, block);
 
 			if (block[relativeIndex - 6] == 0){
 				int NewBlockInd = block_store_allocate(fs->bs);
@@ -737,7 +744,8 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 			if (block_ind <= 0)
 				return -1;
 			node.indirectTwo = block_ind;
-			unsigned int block[256];
+			write_inode(fs, inode_index, &node);
+			uint16_t block[256];
 			int i;
 			for (i = 0; i < 255; i++)
 				block[i] = 0;
@@ -758,7 +766,7 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 
 			//we know neither exist because we just made it
 			block[levelOneBlockIndex] = NewPointerBlock;
-			block_store_write(fs->bs, block_ind, &block);
+			block_store_write(fs->bs, block_ind, block);
 			//now we point to block, which points to another block
 			//that other block will be pointers too
 			block[levelOneBlockIndex] = 0; //now all zeros
@@ -767,7 +775,7 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 				return -1;
 				
 			block[levelTwoBlockIndex] = NewBlockForStorage; 
-			block_store_write(fs->bs, NewPointerBlock, &block);
+			block_store_write(fs->bs, NewPointerBlock, block);
 			return NewBlockForStorage;	
 		} else {		//indrect points to block, so now we need to see if we can get the block we need....
 
@@ -775,9 +783,9 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 
 			int levelOneBlockIndex = relativeIndex / 256;
 
-			unsigned int temp[256];
+			uint16_t temp[256];
 
-			block_store_read(fs->bs, block_ind, &temp); //we gotta check this block
+			block_store_read(fs->bs, block_ind, temp); //we gotta check this block
 
 			if( temp[levelOneBlockIndex] == 0 ){ //we have a block, points to nothing, so two allocs for pointer block and actual block
 				int newPointerBlock = block_store_allocate(fs->bs);
@@ -785,7 +793,7 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 					return -1;
 
 				temp[levelOneBlockIndex] = newPointerBlock;
-				block_store_write(fs->bs, block_ind, &temp);
+				block_store_write(fs->bs, block_ind, temp);
 
 				int levelTwoBlockIndex = relativeIndex % 256;
 
@@ -800,11 +808,16 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 					temp[i] = 0;
 
 				temp[levelTwoBlockIndex] = newBlockForStorage;
-				block_store_write(fs->bs, newPointerBlock, &temp);
+				block_store_write(fs->bs, newPointerBlock, temp);
 				return newBlockForStorage;
 			} else {	//We have a block, points to a block of pointers, see if the block of pointers has the block we want
-				unsigned int pointers[256];
-				block_store_read(fs->bs, temp[levelOneBlockIndex], &pointers);
+				uint16_t pointers[256];
+
+				int i;
+				for (i = 0; i < 255; i++)
+					pointers[i] = 0;
+
+				block_store_read(fs->bs, temp[levelOneBlockIndex], pointers);
 
 				int levelTwoIndex = relativeIndex % 256;
 
@@ -815,10 +828,11 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 						return -1;
 
 					pointers[levelTwoIndex] = newBlock;
-					block_store_write(fs->bs, temp[levelOneBlockIndex], &pointers);
+					block_store_write(fs->bs, temp[levelOneBlockIndex], pointers);
 					return newBlock;
 				} else {
-					return pointers[levelTwoIndex];
+					int index = pointers[levelTwoIndex];
+					return index;
 				}
 
 			}

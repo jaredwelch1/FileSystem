@@ -696,12 +696,8 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 			int NewBlockInd = block_store_allocate(fs->bs);
 			if (NewBlockInd <= 0)
 				return -1;
-			uint16_t block[256]; //block of pointers fam
-			int i;
-
-			for (i = 0; i < 255; i++)
-				block[i] = 0; //block pointers to NULL basically, so if we go to a relative block and it points no where we can allocate first
-			
+			uint16_t block[256] = {0}; //block of pointers fam
+		
 			block[relativeIndex - 6] = NewBlockInd;
 			//This allows for gaps in the block of block pointers, in theory, this should be okay, because when we later ask for 
 			//things that do not have spots, we will know. Since this function is relative to actual tranlsation, we do not want
@@ -718,7 +714,7 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 		} else { 	//if we get here, then the indirectOne has a block set up already, so find the relative block,
 					//if it exists, great, return its real index
 					//if it is 0, meaning it doesn't exist, get a free block, point to it, then return it
-			uint16_t block[256];
+			uint16_t block[256] = {0};
 			block_store_read(fs->bs, block_ind, block);
 
 			if (block[relativeIndex - 6] == 0){
@@ -746,10 +742,8 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 				return -1;
 			node.indirectTwo = block_ind;
 			write_inode(fs, inode_index, &node);
-			uint16_t block[256];
-			int i;
-			for (i = 0; i < 255; i++)
-				block[i] = 0;
+			uint16_t block[256] = {0};
+	
 			//now need a block of pointers to point to
 			int NewPointerBlock = block_store_allocate(fs->bs);
 			if (NewPointerBlock <= 0)
@@ -771,6 +765,8 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 			//now we point to block, which points to another block
 			//that other block will be pointers too
 			block[levelOneBlockIndex] = 0; //now all zeros
+			
+			
 			int NewBlockForStorage = block_store_allocate(fs->bs);
 			if (NewBlockForStorage <= 0)
 				return -1;
@@ -784,7 +780,7 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 
 			int levelOneBlockIndex = relativeIndex / 256;
 
-			uint16_t temp[256];
+			uint16_t temp[256] = {0};
 
 			block_store_read(fs->bs, block_ind, temp); //we gotta check this block
 
@@ -804,7 +800,6 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 					return -1;
 
 				int i;
-
 				for (i = 0; i < 255; i++)
 					temp[i] = 0;
 
@@ -812,11 +807,7 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 				block_store_write(fs->bs, newPointerBlock, temp);
 				return newBlockForStorage;
 			} else {	//We have a block, points to a block of pointers, see if the block of pointers has the block we want
-				uint16_t pointers[256];
-
-				int i;
-				for (i = 0; i < 255; i++)
-					pointers[i] = 0;
+				uint16_t pointers[256] = {0};
 
 				block_store_read(fs->bs, temp[levelOneBlockIndex], pointers);
 

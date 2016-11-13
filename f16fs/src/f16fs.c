@@ -726,6 +726,7 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 				if (NewBlockInd <= 0)
 					return -1;
 				block[relativeIndex - 6] = NewBlockInd;
+				block_store_write(fs->bs, block_ind, block);
 				return NewBlockInd;
 			} else {	//if here, then block should be allocated for use, so just return its index
 				return block[relativeIndex - 6];

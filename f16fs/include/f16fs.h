@@ -147,7 +147,9 @@ int existing_traversal(F16FS_t *, const char *);
 int creation_traversal(F16FS_t *fs, const char *path);
 int existing_traversal_directory(F16FS_t *, const char *);
 
-int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs);
+int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs, bool);
+int get_actual_block_write(int relativeIndex, int inode_index, F16FS_t *fs);
+int get_actual_block_read(int relativeIndex, int inode_index, F16FS_t *fs);
 
 bool get_inode(F16FS_t *fs, int index, inode_t *);
 

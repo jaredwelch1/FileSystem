@@ -563,17 +563,116 @@ bool write_inode(F16FS_t *fs, int index, inode_t *new_node){
 }
 
 off_t fs_seek(F16FS_t *fs, int fd, off_t offset, seek_t whence){
-	if (fs == NULL || fd < 0 || offset < 0 || whence < 0)
+	if (fs == NULL || fd < 0 || fs->file_descriptor_table[fd].inode_index < 0)
 		return -1;
-	return -1;
+	if ( whence != FS_SEEK_SET && whence != FS_SEEK_CUR && whence != FS_SEEK_END)
+		return -1;
+
+	int inode_ind = fs->file_descriptor_table[fd].inode_index;
+	inode_t node;
+	get_inode(fs, inode_ind, &node);
+	int startFrom;
+
+	if (whence == FS_SEEK_CUR)
+		startFrom = fs->file_descriptor_table[fd].offset;
+	else if (whence == FS_SEEK_END)
+		startFrom = node.file_size;
+	else 
+		//handle seek_set
+		startFrom = 0;
+
+	if ( offset + startFrom > node.file_size ){
+		fs->file_descriptor_table[fd].offset = node.file_size;
+		return node.file_size;
+	} //go to end of file if too big
+	if ( offset + startFrom < 0){
+		fs->file_descriptor_table[fd].offset = 0;
+		return 0;
+	}
+
+	fs->file_descriptor_table[fd].offset = startFrom + offset;
+	return fs->file_descriptor_table[fd].offset;
+	
 }
 
 ssize_t fs_read(F16FS_t *fs, int fd, void *dst, size_t nbyte){
-	if (fs == NULL || fd < 0 || dst == NULL)
+	if (fs == NULL || fd < 0 || dst == NULL || fs->file_descriptor_table[fd].inode_index < 0)
 		return -1;
-	if(nbyte)
-	return -1;
-	return -1;
+	if (nbyte == 0)
+		return 0;
+
+	char temp_block[512] ={0}; 	//this will be where we put memory to be read
+								//first read in a free block, memcpy to dest	
+
+	size_t currByte = 0; 		//this will allow us to track how man bytes we have read so far, 
+	size_t currOffset = 0; 		//this will tell us where we are currently at within the file as we read
+	int relativeBlock = 0; 		//this will tell us what block we are at, relative to the blocks within a file
+	size_t bytesLeft = 0;
+	bytesLeft = nbyte;
+
+
+	currOffset = fs->file_descriptor_table[fd].offset;
+	//now we need the inode for the file in the fd
+	int inode_ind = fs->file_descriptor_table[fd].inode_index;
+	int block_index = 0;
+	//check if we start in middle of block
+	int block_byte_offset = currOffset % 512; //any bytes over 512 means we are inside a block 
+	relativeBlock = currOffset / 512;
+	if (block_byte_offset > 0){
+		//we are starting inside a block, so read it in to the dest
+
+		block_index = get_actual_block_read(relativeBlock, inode_ind, fs);
+		
+		if (block_index < 0)
+			return -1;
+		
+		//we can read
+		block_store_read(fs->bs, block_index, temp_block);
+		memcpy(dst, temp_block + block_byte_offset, 512 - block_byte_offset);
+		currByte+=(512- block_byte_offset); 	
+		bytesLeft-=(512-block_byte_offset);
+		currOffset+=(512-block_byte_offset);
+		relativeBlock++;
+	}
+
+	//once here, we should always be starting with full block.
+	bool file_not_full = true;
+	while (bytesLeft > 511 && file_not_full){
+		block_index = get_actual_block_read(relativeBlock, inode_ind, fs);
+		
+		if (block_index < 0){
+			fs->file_descriptor_table[fd].offset+=currByte;	
+			return currByte;
+		}
+		block_store_read(fs->bs, block_index, temp_block);
+		memcpy(dst + currByte, temp_block, 512);
+	
+		currByte+=512;
+		bytesLeft-=512;
+		currOffset+=512;
+		relativeBlock++;
+
+		if (relativeBlock > 65797)
+			file_not_full = false;
+	}
+
+	if (bytesLeft > 0 && file_not_full){
+		block_index = get_actual_block_read(relativeBlock, inode_ind, fs);
+		
+		if (block_index < 0){
+			fs->file_descriptor_table[fd].offset+=currByte;
+			return currByte;
+		}
+
+		block_store_read(fs->bs, block_index, temp_block);
+		memcpy(dst + currByte, temp_block, bytesLeft);
+	
+		currByte += bytesLeft;
+		currOffset+=bytesLeft;
+
+	}
+	fs->file_descriptor_table[fd].offset+=currByte;
+	return currByte;
 }
 
 // 6 + 256 + 256*256 = 65,798 max block index is 65,797 then
@@ -591,7 +690,7 @@ ssize_t fs_write(F16FS_t *fs, int fd, const void *src, size_t nbyte){
 	int relativeBlock = 0; 		//this will tell us what block we are at, relative to the blocks within a file
 	size_t bytesLeft = 0;
 	bytesLeft = nbyte;
-
+	inode_t node;
 
 	currOffset = fs->file_descriptor_table[fd].offset;
 	//now we need the inode for the file in the fd
@@ -603,7 +702,7 @@ ssize_t fs_write(F16FS_t *fs, int fd, const void *src, size_t nbyte){
 	if (block_byte_offset > 0){
 		//we are starting inside a block, so read it in the we can write to it then write to block_store
 
-		block_index = get_actual_block_index(relativeBlock, inode_ind, fs);
+		block_index = get_actual_block_write(relativeBlock, inode_ind, fs);
 		//printf("\nBLOCK INDEX: %d", block_index);		
 		if (block_index < 0)
 			return -1;
@@ -621,10 +720,13 @@ ssize_t fs_write(F16FS_t *fs, int fd, const void *src, size_t nbyte){
 	//once here, we should always be starting with full block.
 	bool file_not_full = true;
 	while (bytesLeft > 511 && file_not_full){
-		block_index = get_actual_block_index(relativeBlock, inode_ind, fs);
+		block_index = get_actual_block_write(relativeBlock, inode_ind, fs);
 		//printf("\nBLOCK INDEX: %d", block_index);
 		if (block_index < 0){
 			fs->file_descriptor_table[fd].offset+=currByte;	
+			get_inode(fs, inode_ind, &node);
+			node.file_size += currByte;
+			write_inode(fs, inode_ind, &node);
 			return currByte;
 		}
 		memcpy(temp_block, src + currByte, 512);
@@ -639,10 +741,13 @@ ssize_t fs_write(F16FS_t *fs, int fd, const void *src, size_t nbyte){
 	}
 
 	if (bytesLeft > 0 && file_not_full){
-		block_index = get_actual_block_index(relativeBlock, inode_ind, fs);
+		block_index = get_actual_block_write(relativeBlock, inode_ind, fs);
 		//printf("\nBLOCK INDEX: %d", block_index);
 		if (block_index < 0){
 			fs->file_descriptor_table[fd].offset+=currByte;
+			get_inode(fs, inode_ind, &node);
+			node.file_size += currByte;
+			write_inode(fs, inode_ind, &node);
 			return currByte;
 		}
 
@@ -653,6 +758,9 @@ ssize_t fs_write(F16FS_t *fs, int fd, const void *src, size_t nbyte){
 
 	}
 	fs->file_descriptor_table[fd].offset+=currByte;
+	get_inode(fs, inode_ind, &node);
+	node.file_size += currByte;
+	write_inode(fs, inode_ind, &node);
 	return currByte;
 }
 
@@ -662,9 +770,17 @@ int fs_remove(F16FS_t *fs, const char *path){
 	return -1;
 }
 
+int get_actual_block_write(int relativeIndex, int inode_index, F16FS_t *fs){
+	return get_actual_block_index(relativeIndex, inode_index, fs, false);
+}
+
+int get_actual_block_read(int relativeIndex, int inode_index, F16FS_t *fs){
+	return get_actual_block_index(relativeIndex, inode_index, fs, true);
+}
+
 
 //takes in relativeIndex for file block (0-5 for direct, 6-261 for 1stDirect, 262-65,797`
-int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
+int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs, bool isRead){
 	if (relativeIndex < 0 || relativeIndex > 65797)
 		return -1;
 
@@ -674,6 +790,9 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 	if (relativeIndex < 6){
 		block_ind = node.directPtrs[relativeIndex];
 		if (block_ind == -1){ 	//this means no block allocated to this block pointer
+			if(isRead){ //if we are reading, but the pointer points no where, nothing to read
+				return -1;
+			}
 			block_ind = block_store_allocate(fs->bs);
 			if (block_ind <= 0) //if allocate failed
 				return -1;
@@ -688,6 +807,9 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 								//so we must get free block, make it pointers, set it the indirect
 								//then get another free block, point the first indirect block pointer in the new block
 								//to that allocated block, then return that index
+			if( isRead )
+				return -1;
+			
 			block_ind = block_store_allocate(fs->bs);
 			if (block_ind <= 0)
 				return -1;
@@ -718,6 +840,10 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 			block_store_read(fs->bs, block_ind, block);
 
 			if (block[relativeIndex - 6] == 0){
+				
+				if (isRead)
+					return -1;
+
 				int NewBlockInd = block_store_allocate(fs->bs);
 				if (NewBlockInd <= 0)
 					return -1;
@@ -737,6 +863,10 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 								//then allocate another block of pointers to  point to
 								//finally, point the relative spot in the previous block to a free block
 								//then return that free block
+		
+			if (isRead)
+				return -1;
+				
 			block_ind = block_store_allocate(fs->bs);
 			if (block_ind <= 0)
 				return -1;
@@ -785,6 +915,10 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 			block_store_read(fs->bs, block_ind, temp); //we gotta check this block
 
 			if( temp[levelOneBlockIndex] == 0 ){ //we have a block, points to nothing, so two allocs for pointer block and actual block
+				
+				if (isRead)
+					return -1;
+
 				int newPointerBlock = block_store_allocate(fs->bs);
 				if (newPointerBlock <= 0)
 					return -1;
@@ -815,6 +949,10 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
 
 				//either we have a block, or not, we do, return its index, we dont allocate for it
 				if ( pointers[levelTwoIndex] == 0){
+					
+					if (isRead)
+						return -1;
+
 					int newBlock = block_store_allocate(fs->bs);
 					if (newBlock <= 0)
 						return -1;

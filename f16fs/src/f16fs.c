@@ -73,6 +73,11 @@ F16FS_t *fs_format(const char *path){
 		
 		for (j = 0; j < 8; j++)
 				block_format[j].refCount = -1;
+				int k = 0;
+				for ( k = 0; k < 6; k++)
+					block_format[j].directPtrs[k] = -1;
+				block_format[j].indirectOne = -1;
+				block_format[j].indirectTwo = -1;
 		if( !block_store_request((block_store_t *const)bs, (const unsigned)i) ){
 			return NULL;		
 		} 
@@ -537,7 +542,7 @@ bool get_inode(F16FS_t *fs, int index, inode_t *node){
 		//0 index + 17 = first block
 		//1 index + 17 = second block, 18th block number
 		int offset = index % 8;
-
+		
 		inode_t nodes[8];
 		block_store_read(fs->bs, block + 16, nodes);
 		memcpy( node, nodes+offset, sizeof(inode_t));
@@ -570,13 +575,31 @@ ssize_t fs_read(F16FS_t *fs, int fd, void *dst, size_t nbyte){
 	return -1;
 }
 
+// 6 + 256 + 256*256 = 65,798 max block index is 65,797 then
 ssize_t fs_write(F16FS_t *fs, int fd, const void *src, size_t nbyte){
 	if (fs == NULL || fd < 0 || src == NULL)
 		return -1;
 
-	if(nbyte)
+	char temp_block[512]; 	//this will be where we put memory to be written
+							//first read in a free block, memcpy to it, then write that block back in
+
+	size_t currByte; 		//this will allow us to track how man bytes we have written so far, 
+	size_t currOffset; 		//this will tell us where we are currently at within the file as we write
+	int relativeBlock; 		//this will tell us what block we are at, relative to the blocks within a file
+	size_t bytesLeft = nbyte;
+
+
+	currOffset = fs->file_descriptor_table[fd].offset;
+	//now we need the inode for the file in the fd
+	int inode_ind = fs->file_descriptor_table[fd].inode_index;
 	return -1;
-	return -1;
+	
+	//check if we start in middle of block
+	int block_byte_offset = currOffset % 512; //any bytes over 512 means we are inside a block 
+	relativeBlock = currOffset / 512;
+	if (block_byte_offset > 0){
+			
+	}
 }
 
 int fs_remove(F16FS_t *fs, const char *path){
@@ -586,7 +609,173 @@ int fs_remove(F16FS_t *fs, const char *path){
 }
 
 
-//takes in relativeIndex for file block (0-5 for direct, 6-1029 for 1stDirect, `
-int get_actual_block_index(int relativeIndex, node_t node){
-	if 
+//takes in relativeIndex for file block (0-5 for direct, 6-261 for 1stDirect, 262-65,797`
+int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs){
+	if (relativeIndex < 0 || relativeIndex > 65797)
+		return -1;
+
+	int block_ind;
+	inode_t node;
+	get_inode(fs, inode_index, &node);
+	if (relativeIndex < 6){
+		block_ind = node.directPtrs[relativeIndex];
+		if (block_ind == -1){ 	//this means no block allocated to this block pointer
+			block_ind = block_store_allocate(fs->bs);
+			if (block_ind < 0) //if allocate failed
+				return -1;
+			node.directPtrs[relativeIndex] = block_ind;
+			write_inode(fs, inode_index, &node); //now node is updated with new pointer	
+		}
+		return block_ind;	
+	}	else if (relativeIndex < 262){ //first Indirect
+		block_ind = node.indirectOne;
+
+		if (block_ind == -1){ 	//this means no indirect block for the indirect block pointer, 
+								//so we must get free block, make it pointers, set it the indirect
+								//then get another free block, point the first indirect block pointer in the new block
+								//to that allocated block, then return that index
+			block_ind = block_store_allocate(fs->bs);
+			if (block_ind < 0)
+				return -1;
+			node.indirectOne = block_ind;
+			int NewBlockInd = block_store_allocate(fs->bs);
+			if (NewBlockInd < 0)
+				return -1;
+			unsigned int block[256]; //block of pointers fam
+			
+			int i;
+
+			for (i = 0; i < 255; i++)
+				block[i] = 0; //block pointers to NULL basically, so if we go to a relative block and it points no where we can allocate first
+			
+			block[relativeIndex - 6] = NewBlockInd;
+			//This allows for gaps in the block of block pointers, in theory, this should be okay, because when we later ask for 
+			//things that do not have spots, we will know. Since this function is relative to actual tranlsation, we do not want
+			//to make any assumptions about the block pointers, but we also dont want to start sequentially, because the would defeat
+			//the translations purpose
+			//if we find some errors due to this behavior, that will suck
+
+			block_store_write(fs->bs, block_ind, &block);
+			//now we have the indirect block pointing to a block of pointers, so we use the free block to be given back
+			//as the block index to be used for a write, it is allocated, but we don't need to do anything other than keep track of it
+			//which we did when we put it into the indirectBlock pointer
+			//return the new pointer?
+			return NewBlockInd;
+		} else { 	//if we get here, then the indirectOne has a block set up already, so find the relative block,
+					//if it exists, great, return its real index
+					//if it is 0, meaning it doesn't exist, get a free block, point to it, then return it
+			unsigned int block[256];
+			block_store_read(fs->bs, block_ind, &block);
+
+			if (block[relativeIndex - 6] == 0){
+				int NewBlockInd = block_store_allocate(fs->bs);
+				if (NewBlockInd < 0)
+					return -1;
+				block[relativeIndex - 6] = NewBlockInd;
+				return NewBlockInd;
+			} else {	//if here, then block should be allocated for use, so just return its index
+				return block[relativeIndex - 6];
+			}
+		}
+	
+	} else { 	//can do else, we know it is not beyond scope, and it isnt in the other 2, so has to be second indirect
+		block_ind = node.indirectTwo;
+		
+		if (block_ind < 0) { 	//this means, we have no second indirect block, so gotta get that
+								//Then we gotta allocate a block of pointers point to
+								//then allocate another block of pointers to  point to
+								//finally, point the relative spot in the previous block to a free block
+								//then return that free block
+			block_ind = block_store_allocate(fs->bs);
+			if (block_ind < 0)
+				return -1;
+			node.indirectTwo = block_ind;
+			unsigned int block[256];
+			int i;
+			for (i = 0; i < 255; i++)
+				block[i] = 0;
+			//now need a block of pointers to point to
+			int NewPointerBlock = block_store_allocate(fs->bs);
+			if (NewPointerBlock < 0)
+				return -1;
+			//so we have a relative block num. 
+			//First take off 262
+			//Now, divide by 256 to get the block inside we need
+			//then the remainder can be used to get the index within that block
+			relativeIndex = relativeIndex - 262;
+			
+			//Level one block = block pointing to blocks of pointers
+			//level two block = pointer to by level one, points to real block
+			int levelOneBlockIndex = relativeIndex / 256; //0 means first block of pointers
+			int levelTwoBlockIndex = relativeIndex % 256; //0 means first block pointed to by the second level block
+
+			//we know neither exist because we just made it
+			block[levelOneBlockIndex] = NewPointerBlock;
+			block_store_write(fs->bs, block_ind, &block);
+			//now we point to block, which points to another block
+			//that other block will be pointers too
+			block[levelOneBlockIndex] = 0; //now all zeros
+			int NewBlockForStorage = block_store_allocate(fs->bs);
+			if (NewBlockForStorage < 0)
+				return -1;
+				
+			block[levelTwoBlockIndex] = NewBlockForStorage; 
+			block_store_write(fs->bs, NewPointerBlock, &block);
+			return NewBlockForStorage;	
+		} else {		//indrect points to block, so now we need to see if we can get the block we need....
+
+			relativeIndex = relativeIndex - 262;
+
+			int levelOneBlockIndex = relativeIndex / 256;
+
+			unsigned int temp[256];
+
+			block_store_read(fs->bs, block_ind, &temp); //we gotta check this block
+
+			if( temp[levelOneBlockIndex] == 0 ){ //we have a block, points to nothing, so two allocs for pointer block and actual block
+				int newPointerBlock = block_store_allocate(fs->bs);
+				if (newPointerBlock < 0)
+					return -1;
+
+				temp[levelOneBlockIndex] = newPointerBlock;
+				block_store_write(fs->bs, block_ind, &temp);
+
+				int levelTwoBlockIndex = relativeIndex % 256;
+
+				int newBlockForStorage = block_store_allocate(fs->bs);
+
+				if (newBlockForStorage < 0)
+					return -1;
+
+				int i;
+
+				for (i = 0; i < 255; i++)
+					temp[i] = 0;
+
+				temp[levelTwoBlockIndex] = newBlockForStorage;
+				block_store_write(fs->bs, newPointerBlock, &temp);
+				return newBlockForStorage;
+			} else {	//We have a block, points to a block of pointers, see if the block of pointers has the block we want
+				unsigned int pointers[256];
+				block_store_read(fs->bs, temp[levelOneBlockIndex], &pointers);
+
+				int levelTwoIndex = relativeIndex % 256;
+
+				//either we have a block, or not, we do, return its index, we dont allocate for it
+				if ( pointers[levelTwoIndex] == 0){
+					int newBlock = block_store_allocate(fs->bs);
+					if (newBlock < 0)
+						return -1;
+
+					pointers[levelTwoIndex] = newBlock;
+					block_store_write(fs->bs, temp[levelOneBlockIndex], &pointers);
+					return newBlock;
+				} else {
+					return pointers[levelTwoIndex];
+				}
+
+			}
+		}
+	}
+	return -1;		
 }

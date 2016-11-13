@@ -1197,7 +1197,7 @@ TEST(j_tests, link) {
     ASSERT_TRUE(false); // No, you don't get points for just turning the tests on
     score += 15;
 }
-#endif
+
 #endif
 
 int main(int argc, char **argv) {

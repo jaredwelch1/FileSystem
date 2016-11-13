@@ -713,7 +713,7 @@ TEST(d_tests, write_file_fill) {
 
     score += 12;
 }
-
+#if 0
 /*
     int fs_remove(F16FS_t *fs, const char *path);
     1. Normal, file at root
@@ -1000,7 +1000,7 @@ TEST(h_tests, read) {
 
     score += 12;
 }
-
+#endif
 #if GRAD_TESTS
 
 /*

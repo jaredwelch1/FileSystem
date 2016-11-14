@@ -714,7 +714,7 @@ TEST(d_tests, write_file_fill) {
     score += 12;
 }
 
-#if 0
+
 /*
     int fs_remove(F16FS_t *fs, const char *path);
     1. Normal, file at root
@@ -822,7 +822,7 @@ TEST(e_tests, remove_file) {
 
     score += 12;
 }
-#endif
+
 
 /*
     off_t fs_seek(F16FS_t *fs, int fd, off_t offset, seek_t whence)
@@ -890,7 +890,7 @@ TEST(g_tests, seek) {
 
     score += 15;
 }
-#if 0
+
 /*
     ssize_t fs_read(F16FS_t *fs, int fd, void *dst, size_t nbyte);
     1. Normal, begin to < 1 block
@@ -1001,7 +1001,7 @@ TEST(h_tests, read) {
 
     score += 12;
 }
-#endif
+
 #if GRAD_TESTS
 
 /*

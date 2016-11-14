@@ -333,6 +333,11 @@ int fs_open(F16FS_t *fs, const char *path){
 	
 	fs->file_descriptor_table[open_fd_index] = temp;	
 
+	inode_t node;
+	get_inode(fs, index, &node);
+	node.refCount++;
+	write_inode(fs, index, &node);
+
 	return open_fd_index;
 }
 
@@ -342,7 +347,16 @@ int fs_close(F16FS_t *fs, int fd){
 	
 	if( fs->file_descriptor_table[fd].inode_index < 0)
 		return -1;
+	
+	inode_t node;
+	get_inode(fs, fs->file_descriptor_table[fd].inode_index, &node);
+	node.refCount--;
+	write_inode(fs, fs->file_descriptor_table[fd].inode_index, &node);
+	
 	fs->file_descriptor_table[fd].inode_index = -1;
+	
+	
+	
 	return 0;
 }
 
@@ -767,7 +781,132 @@ ssize_t fs_write(F16FS_t *fs, int fd, const void *src, size_t nbyte){
 int fs_remove(F16FS_t *fs, const char *path){
 	if (fs == NULL || path == NULL || path[0] != '/')
 		return -1;
-	return -1;
+	
+	//so, first, we need to see if our path is valid, so lets get the inode it leads to.
+	int index = existing_traversal(fs, path);
+
+	//if index < 0, means we could not reach the file, or it might be a directory so try that too
+	if (index < 0){
+		index = existing_traversal_directory(fs, path);
+		if ( index < 0 )
+			return -1;
+	}
+	//now, we should have the inode index. So, if its a directory and not empty, error.
+	//after that, the handle is the same, free all stuff for that file
+	//doesn't matter if directory or not if we handled the file creation and writes properly.
+	//the issue is, how do we invalidate the file_descriptors?
+	//loop through all of them, then remove all of the ones for the inode index of this file?
+	
+	inode_t node;
+	get_inode(fs, index, &node);
+	uint16_t temp[256] = {0};
+
+	//can use get dir then check the dyn array size, test does it and it passes so yeah
+	if (node.type == FS_DIRECTORY){
+		dyn_array_t *results = fs_get_dir(fs, path);
+		if ( dyn_array_size(results) != 0 ){
+		//directory not empty, remove fails
+		dyn_array_destroy(results);
+		return -1;
+		}
+	dyn_array_destroy(results);
+	}
+	//directory is empty, so now, free the file. Just check what is there and release the taken blocks.
+	
+	int i; 
+	for (i = 0; i < 6; i++){
+		if (node.directPtrs[i] != -1){
+			block_store_release(fs->bs, node.directPtrs[i]);
+			node.directPtrs[i] = -1;
+			//free the blocks, and set the pointers to null (we will clear this inode when we remove, so it is clean for other stuff
+			//clean meaning same as when we formatted it in the original format
+		}
+	}
+	if (node.indirectOne != -1){	//now we check if there are indirect pointers.
+									//release all 256 if present, that block points to
+									//then release pointer block
+									//then set to -1
+
+		
+		//read in the pointer block
+		block_store_read(fs->bs, node.indirectOne, temp);
+		for (i = 0; i < 256; i++){
+			if (temp[i] != 0){ //if points to block
+				block_store_release(fs->bs, temp[i]);						
+			}
+		}
+		//now we free the pointer block
+		block_store_release(fs->bs, node.indirectOne);
+		node.indirectOne = -1;	
+	}	
+	//freed direct, indirect one, now second indirect if exists.
+	
+	if (node.indirectTwo != -1){				//so, for every block that our 1st pointer block points to
+											//do what we did for the first indirect
+		uint16_t temp2[256] = {0};
+		block_store_read(fs->bs, node.indirectTwo, temp);
+		//now we have the block that points to blocks of pointers.
+		int j;
+		for( i = 0; i < 256; i++){
+			if (temp[i] != 0){
+				block_store_read(fs->bs, temp[i], temp2);
+				//gotta loop thru it now
+				for (j = 0; j < 256; j++){
+					if (temp[j] != 0)
+						block_store_release(fs->bs, temp[j]);
+					
+				}
+				block_store_release(fs->bs, temp[i]); //release block of pointers
+
+			}
+
+		}
+		node.indirectTwo = -1;
+		
+	}
+	node.refCount = -1;
+	for (i = 0; i < 256; i++){
+		if (fs->file_descriptor_table[i].inode_index == index){
+			fs->file_descriptor_table[i].inode_index = -1;
+		}
+	}
+	write_inode(fs, index, &node);
+	//now, we have to remove the file name and reference from the parent directory. 
+	//gonna be kind of a hacky fix, but we have a creation path traversal, which gives parent inode,
+	//so got to parent inode, find the matching file name for our file, then delete that reference.
+	index = creation_traversal(fs, path);
+	get_inode(fs, index, &node);
+	
+	i = 0;
+	int path_len = 0;
+	while (path[i] != (char)0)
+		i++;	
+	int j = 0;
+	path_len = i;
+	i = path_len - 1; //index of last char is length - 1
+	char fname[FS_NAME_MAX];
+	while (path[i] != '/'){
+		j++;
+		i--;
+	}
+	int fn_len = j;
+	//now j is fname length
+	
+	for (j = 0, i = path_len - fn_len; j < fn_len; j++, i++){
+		fname[j] = path[i];
+	}
+	fname[fn_len] = '\0';
+	char tmp_block[512];
+	block_store_read(fs->bs, node.directPtrs[0], tmp_block);
+	directory_entry_t *entries = (directory_entry_t*)tmp_block;
+	for (i = 0; i < 7; i++){
+		if (strcmp(entries[i].fname, fname) == 0){
+			memset(entries[i].fname, 0, 64);
+			entries[i].inode_index = -1;
+		}
+	}
+	block_store_write(fs->bs, node.directPtrs[0], tmp_block);
+	return 0;
 }
 
 int get_actual_block_write(int relativeIndex, int inode_index, F16FS_t *fs){

@@ -1109,3 +1109,158 @@ int get_actual_block_index(int relativeIndex, int inode_index, F16FS_t *fs, bool
 	}
 	return -1;		
 }
+
+int fs_move(F16FS_t *fs, const char *src, const char *dst){	
+		if ( fs == NULL || src == NULL || dst == NULL ){
+			return -1;
+		}	
+		char root[2] = {'/', '\0'};
+		if (strcmp(root, src) == 0)
+			return -1;
+
+		int srcNode = creation_traversal(fs, src);
+		int dstNode = creation_traversal(fs, dst);
+		
+		if (srcNode < 0 || dstNode < 0)
+			return -1;
+		
+		int i = 0;
+		int path_len = 0;
+		while (src[i] != (char)0)
+			i++;	
+		int j = 0;
+		path_len = i;
+		i = path_len - 1; //index of last char is length - 1
+		char oldName[FS_NAME_MAX];
+		while (src[i] != '/'){
+			j++;
+			i--;
+		}
+		int fn_len = j;
+		//now j is fname length
+
+		for (j = 0, i = path_len - fn_len; j < fn_len; j++, i++){
+			oldName[j] = src[i];
+		}
+		oldName[fn_len] = '\0';	
+		
+		i = 0;
+		path_len = 0;
+		while (dst[i] != (char)0)
+			i++;	
+		j = 0;
+		path_len = i;
+		i = path_len - 1; //index of last char is length - 1
+		char newName[FS_NAME_MAX];
+		while (dst[i] != '/'){
+			j++;
+			i--;
+		}
+		fn_len = j;
+		//now j is fname length
+	
+		for (j = 0, i = path_len - fn_len; j < fn_len; j++, i++){
+			newName[j] = dst[i];
+		}
+		newName[fn_len] = '\0';
+		char dstPathDirectory[64];
+		for (j = 0; j < path_len - fn_len; j++)
+				dstPathDirectory[j] = dst[j];
+		
+		dstPathDirectory[path_len - fn_len] = (char)0;
+		
+		if ( srcNode == dstNode){ 	//so first check if its just a rename, if so
+									//just rename and return
+			char temp[512];
+			inode_t node;
+			get_inode(fs, dstNode, &node);
+			block_store_read(fs->bs, node.directPtrs[0], temp);
+			directory_entry_t *entries = (directory_entry_t*)temp;
+			
+			
+
+			//find this fname in parent node, change it to new fname
+			for (i = 0; i < 7; i++){
+				if ( strcmp(entries[i].fname, oldName) == 0 ){
+					memcpy(entries[i].fname, newName, 64);
+					block_store_write(fs->bs, node.directPtrs[0], temp);
+					return 0;
+				}
+			}
+		
+		}
+		//check if parentDir is full
+
+		dyn_array_t *result = fs_get_dir(fs, dstPathDirectory);
+		if (dyn_array_size(result) >= 7){
+			dyn_array_destroy(result);
+			return -1; //full directory and not a rename
+		}
+		dyn_array_destroy(result);
+		//first, lets get the inode index for the file.
+		int fileIndex = existing_traversal(fs, src);
+		
+		if (fileIndex < 0){ 	
+			fileIndex = existing_traversal_directory(fs, src);
+			if (fileIndex < 0)
+				return -1;
+		}	
+		if (fileIndex == dstNode)
+			return -1;
+				
+		if (fileIndex < 0){ //could be directory
+				fileIndex = existing_traversal_directory(fs, src);
+				if (fileIndex < 0)
+					return -1;
+		}
+		//check if new file already exists at the destination
+		int newPrnt = creation_traversal(fs, dst);
+		inode_t node;
+		get_inode(fs, newPrnt, &node);
+
+		char test[512];
+		block_store_read(fs->bs, node.directPtrs[0], test);
+		directory_entry_t *entries = (directory_entry_t*)test;
+		
+		for (i = 0; i < 7; i++){
+			if (strcmp(entries[i].fname, newName) == 0)
+				return -1;
+		}
+		//so we have the file inode, it does not matter if a file or a directory, we just need
+		//to move it the new place and remove its ref from the old
+		
+		int oldParent = creation_traversal(fs, src);
+		get_inode(fs, oldParent, &node);
+
+		char tmp[512];
+
+		//have to find it in old to remove it
+		block_store_read(fs->bs, node.directPtrs[0], tmp);
+		entries = (directory_entry_t*)tmp;
+		
+		for (i = 0; i < 7; i++){
+			if (strcmp(entries[i].fname, oldName) == 0){
+				entries[i].inode_index = -1;
+				memset(entries[i].fname, 0, 64);
+			}
+		}
+		block_store_write(fs->bs, node.directPtrs[0], tmp);
+		//old entry does not have it anymore, so put it in new one
+		
+		int newParent = creation_traversal(fs, dst);
+		get_inode(fs, newParent, &node);
+
+		block_store_read(fs->bs, node.directPtrs[0], tmp);
+
+		entries = (directory_entry_t*)tmp;
+		
+		for (i = 0; i < 7; i++){
+			if (entries[i].inode_index < 0){ //free spot for it
+				entries[i].inode_index = fileIndex;
+				memcpy(entries[i].fname, newName, 64);
+				block_store_write(fs->bs, node.directPtrs[0], tmp);
+				return 0;
+			}
+		}
+		return 0;
+}

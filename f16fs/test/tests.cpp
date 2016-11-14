@@ -711,7 +711,7 @@ TEST(d_tests, write_file_fill) {
 
     fs_unmount(fs);
 
-    score += 12;
+    score += 16;
 }
 
 
@@ -820,7 +820,7 @@ TEST(e_tests, remove_file) {
 
     fs_unmount(fs);
 
-    score += 12;
+    score += 15;
 }
 
 
@@ -888,7 +888,7 @@ TEST(g_tests, seek) {
 
     fs_unmount(fs);
 
-    score += 15;
+    score += 19;
 }
 
 /*
@@ -999,7 +999,7 @@ TEST(h_tests, read) {
 
     fs_unmount(fs);
 
-    score += 12;
+    score += 16;
 }
 
 #if GRAD_TESTS

@@ -1200,12 +1200,12 @@ int fs_move(F16FS_t *fs, const char *src, const char *dst){
 		//first, lets get the inode index for the file.
 		int fileIndex = existing_traversal(fs, src);
 		
-		if (fileIndex < 0){ 	
+		if (fileIndex < 0){ //if it failed, try to get it as a directory	
 			fileIndex = existing_traversal_directory(fs, src);
 			if (fileIndex < 0)
-				return -1;
+				return -1; //still fails then error
 		}	
-		if (fileIndex == dstNode)
+		if (fileIndex == dstNode) //we have to node, if it matches its parent directory then error
 			return -1;
 				
 		if (fileIndex < 0){ //could be directory

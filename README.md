@@ -1,3 +1,21 @@
-# Project 3 - Filesystems
+# Filesystem
 
-This repo is a project that was done for a class about Operating Systems and their algorithms. It is a fully working file system, written in C. The librarires used, bitmap and dyn_array, were provided by Will Starns, the TA for the class. The tester was also provided.
+A fully working file system using software to function as a storage device in place of physical memory. 
+
+## Features
+
+- Create, format, and mount a file system, including formatting the inode table and necessary structures 
+
+- Can mount an existing file system (uses a file to represent cold storage of the filesystem.)
+
+- can unmount a file system and store its contents to a file to be preserved
+
+- create file (or directory)
+
+- move file
+
+- write to file 
+ 
+- read from file
+
+- delete file
